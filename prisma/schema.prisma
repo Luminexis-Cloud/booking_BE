@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String        @unique
+  phoneNumber  String        @unique
+  password     String
+  isActive     Boolean       @default(true)
+  isVerified   Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  refreshTokens RefreshToken[]
+  stores       Store[]
+  clients      Client[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  code      String
+  phoneNumber String
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("otp_codes")
+}
+
+model Store {
+  id          String    @id @default(cuid())
+  name        String
+  areaOfWork  String
+  teamSize    Int
+  date        String    // Storing as string as per API spec (DD-MM-YYYY format)
+  signature   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services    Service[]
+  categories  Category[]
+  clients     Client[]
+
+  @@map("stores")
+}
+
+model Service {
+  id              String   @id @default(cuid())
+  serviceId       String   @unique @default(cuid()) @map("serviceid")
+  name            String
+  description     String?
+  durationMinutes Int
+  price           Json     // Storing as JSON: { "amount": 120, "currency": "USD", "taxIncluded": false }
+  colorHex        String?
+  deposit         Json     // Storing as JSON: { "type": "percentage", "value": 20 }
+  isActive        Boolean  @default(true)
+  date            String   // Storing as string as per API spec (DD-MM-YYYY format)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  storeId         String   @map("storeId")
+  categoryId      String   @map("categoryid")
+  store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@map("services")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  categoryId  String    @unique @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  services    Service[]
+
+  @@map("categories")
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  type        String   @default("general")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("appointments")
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  clientId    String   @unique @default(cuid())
+  name        String
+  phone       String
+  email       String?
+  notes       String?
+  birthday    DateTime?
+  information Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  storeId     String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("clients")
+}
