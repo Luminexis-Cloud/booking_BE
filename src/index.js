@@ -9,7 +9,7 @@ const startServer = async () => {
     console.log('Database connected successfully');
 
     // Start server
-    const server = app.listen(config.PORT, () => {
+    const server = app.listen(config.PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${config.PORT}`);
       console.log(`Environment: ${config.NODE_ENV}`);
       console.log(`Health check: http://localhost:${config.PORT}/health`);
