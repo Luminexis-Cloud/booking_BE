@@ -24,15 +24,7 @@ app.use(helmet());
 
 // CORS configuration for React Native
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:3001', 
-    'http://192.168.100.106:3000',
-    'http://192.168.100.106:3001',
-    'http://10.0.2.2:3000', // Android emulator
-    'http://10.0.2.2:3001'
-  ],
-  credentials: true,
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 }));
