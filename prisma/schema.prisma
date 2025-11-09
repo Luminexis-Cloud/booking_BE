@@ -1,5 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -11,21 +10,51 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  firstName    String
-  lastName     String
-  email        String        @unique
-  phoneNumber  String        @unique
-  password     String
-  isActive     Boolean       @default(true)
-  isVerified   Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String   @unique
+  phoneNumber   String   @unique
+  password      String
+  isActive      Boolean  @default(true)
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Auth/session
   refreshTokens RefreshToken[]
-  stores       Store[]
-  clients      Client[]
+
+  // Ownership
+  stores        Store[]
+  clients       Client[]
+
+  // RBAC
+  roleId String?
+  role   Role?    @relation(fields: [roleId], references: [id])
+
+  // Per-user permission overrides (optional; default none)
+  userPermissions UserPermission[]
+
+  // Visibility list
+  // Users that THIS user can see:
+  visibleEmployeeLinks EmployeeVisibility[] @relation("Viewer")
+  // Users that can see THIS user:
+  visibleToLinks       EmployeeVisibility[] @relation("Target")
 
   @@map("users")
+}
+
+model EmployeeVisibility {
+  // viewer can see target
+  id       String @id @default(cuid())
+  viewerId String
+  targetId String
+
+  viewer User @relation("Viewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  target User @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([viewerId, targetId])
+  @@map("employee_visibility")
 }
 
 model RefreshToken {
@@ -40,12 +69,12 @@ model RefreshToken {
 }
 
 model OtpCode {
-  id        String   @id @default(cuid())
-  code      String
+  id          String   @id @default(cuid())
+  code        String
   phoneNumber String
-  expiresAt DateTime
-  isUsed    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  expiresAt   DateTime
+  isUsed      Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   @@map("otp_codes")
 }
@@ -55,7 +84,7 @@ model Store {
   name        String
   areaOfWork  String
   teamSize    Int
-  date        String    // Storing as string as per API spec (DD-MM-YYYY format)
+  date        String
   signature   String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -74,11 +103,11 @@ model Service {
   name            String
   description     String?
   durationMinutes Int
-  price           Json     // Storing as JSON: { "amount": 120, "currency": "USD", "taxIncluded": false }
+  price           Json
   colorHex        String?
-  deposit         Json     // Storing as JSON: { "type": "percentage", "value": 20 }
+  deposit         Json
   isActive        Boolean  @default(true)
-  date            String   // Storing as string as per API spec (DD-MM-YYYY format)
+  date            String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   storeId         String   @map("storeId")
@@ -134,4 +163,59 @@ model Client {
   store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@map("clients")
+}
+
+// --- RBAC ---
+
+model Role {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  description     String?
+  userLimit       Int?             @default(10)
+  users           User[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  // e.g. "Employees_view_all"
+  name            String           @unique
+  module          String           // Employees | Appointments | Services | Clients | Invoices | Reports
+  action          String           // view_all | edit_other | add | edit | edit_past | add_edit | view | view_phone_numbers
+  description     String?
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// OPTIONAL: per-user overrides (ALLOW/DENY)
+enum PermissionEffect {
+  ALLOW
+  DENY
+}
+
+model UserPermission {
+  id           String            @id @default(cuid())
+  userId       String
+  permissionId String
+  effect       PermissionEffect  // ALLOW or DENY
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
 }

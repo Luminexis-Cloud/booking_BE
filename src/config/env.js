@@ -6,7 +6,7 @@ const config = {
   PORT: process.env.PORT || 3000,
 
   // Database Configuration
-  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://username:password@localhost:5432/agenda_appointment_db?schema=public',
+  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgress:admin@localhost:5432/nweraapp?schema=public',
 
   // JWT Configuration
   JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production',
