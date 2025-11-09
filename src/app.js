@@ -17,6 +17,11 @@ const clientRoutes = require('./routes/client');
 const categoryRoutes = require('./routes/category');
 // const appointmentRoutes = require('./routes/appointment'); // Commented out for now
 
+// ✅ New routes
+const employeeRoutes = require('./routes/employee');
+const visibilityRoutes = require('./routes/visibility');
+const rolesRoutes = require('./routes/role');
+
 const app = express();
 
 // Security middleware
@@ -26,7 +31,7 @@ app.use(helmet());
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'http://localhost:3001', 
+    'http://localhost:3001',
     'http://192.168.100.106:3000',
     'http://192.168.100.106:3001',
     'http://10.0.2.2:3000', // Android emulator
@@ -82,6 +87,12 @@ app.use('/api', storeRoutes);
 app.use('/api', serviceRoutes);
 app.use('/api', clientRoutes);
 app.use('/api', categoryRoutes);
+
+// ✅ Added new modules
+app.use('/api/employees', employeeRoutes);
+app.use('/api/visibility', visibilityRoutes);
+app.use('/api/roles', rolesRoutes);
+
 // app.use('/api', appointmentRoutes); // Commented out for now
 
 // 404 handler
