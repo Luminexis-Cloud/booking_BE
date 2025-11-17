@@ -37,6 +37,7 @@ class AuthController {
         data: {
           code: otp,
           phoneNumber,
+          type: "signup",
           expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
         },
       });
@@ -183,31 +184,41 @@ class AuthController {
         });
       }
 
-      // Check if user already exists with phone
-      const existingUserByPhone = await prisma.user.findUnique({
-        where: { phoneNumber: phone },
-      });
-
-      if (existingUserByPhone) {
-        return res.status(400).json({
-          success: false,
-          message: "User already exists with this phone number",
+      // Check if user already exists with phone (only if phone is provided)
+      const phoneNumber = phone && phone.trim() ? phone.trim() : null;
+      if (phoneNumber) {
+        const existingUserByPhone = await prisma.user.findUnique({
+          where: { phoneNumber: phoneNumber },
         });
+
+        if (existingUserByPhone) {
+          return res.status(400).json({
+            success: false,
+            message: "User already exists with this phone number",
+          });
+        }
       }
 
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 12);
 
+      // Prepare user data - only include phoneNumber if provided
+      const userData = {
+        firstName,
+        lastName,
+        email,
+        password: hashedPassword,
+        isVerified: true,
+      };
+
+      // Only add phoneNumber if it's provided
+      if (phoneNumber) {
+        userData.phoneNumber = phoneNumber;
+      }
+
       // Create user
       const user = await prisma.user.create({
-        data: {
-          firstName,
-          lastName,
-          email,
-          phoneNumber: phone,
-          password: hashedPassword,
-          isVerified: true,
-        },
+        data: userData,
         select: {
           id: true,
           firstName: true,
@@ -304,6 +315,148 @@ class AuthController {
   //     next(error);
   //   }
   // }
+
+  // Send OTP for forgot password
+  async sendForgotPasswordOtp(req, res, next) {
+    try {
+      const { email } = req.body;
+
+      // Check if user exists
+      const user = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        // Don't reveal if user exists for security
+        return res.json({
+          success: true,
+          message: "If an account exists with this email, a verification code has been sent",
+        });
+      }
+
+      // Generate OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // For now, log OTP (in production, send via email service)
+      console.log(`FORGOT PASSWORD OTP for ${email}: ${otp}`);
+
+      // Store OTP in database
+      await prisma.otpCode.create({
+        data: {
+          code: otp,
+          email,
+          type: "forgot-password",
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+        },
+      });
+
+      res.json({
+        success: true,
+        message: "Verification code sent to your email",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Verify OTP for forgot password
+  async verifyForgotPasswordOtp(req, res, next) {
+    try {
+      const { email, otp } = req.body;
+
+      // Verify OTP
+      const otpRecord = await prisma.otpCode.findFirst({
+        where: {
+          email,
+          code: otp,
+          type: "forgot-password",
+          isUsed: false,
+          expiresAt: { gt: new Date() },
+        },
+      });
+
+      if (!otpRecord) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid or expired verification code",
+        });
+      }
+
+      // Mark OTP as used
+      await prisma.otpCode.update({
+        where: { id: otpRecord.id },
+        data: { isUsed: true },
+      });
+
+      res.json({
+        success: true,
+        message: "Code verified successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Reset password after OTP verification
+  async resetPassword(req, res, next) {
+    try {
+      const { email, otp, newPassword } = req.body;
+
+      // Verify OTP was used (additional security check)
+      const otpRecord = await prisma.otpCode.findFirst({
+        where: {
+          email,
+          code: otp,
+          type: "forgot-password",
+          isUsed: true,
+          expiresAt: { gt: new Date(Date.now() - 30 * 60 * 1000) }, // Used within last 30 minutes
+        },
+      });
+
+      if (!otpRecord) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid or expired verification. Please request a new code.",
+        });
+      }
+
+      // Find user
+      const user = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      // Update password
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+
+      // Delete all OTP codes for this email
+      await prisma.otpCode.deleteMany({
+        where: {
+          email,
+          type: "forgot-password",
+        },
+      });
+
+      res.json({
+        success: true,
+        message: "Password reset successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 
   // async getProfile(req, res, next) {
   //   try {

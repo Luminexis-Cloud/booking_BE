@@ -15,7 +15,7 @@ model User {
   firstName    String
   lastName     String
   email        String        @unique
-  phoneNumber  String        @unique
+  phoneNumber  String?       @unique
   password     String
   isActive     Boolean       @default(true)
   isVerified   Boolean       @default(false)
@@ -40,12 +40,14 @@ model RefreshToken {
 }
 
 model OtpCode {
-  id        String   @id @default(cuid())
-  code      String
-  phoneNumber String
-  expiresAt DateTime
-  isUsed    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  code        String
+  phoneNumber String?
+  email       String?
+  type        String   @default("signup") // "signup" or "forgot-password"
+  expiresAt   DateTime
+  isUsed      Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   @@map("otp_codes")
 }
