@@ -15,7 +15,7 @@ model User {
   firstName    String
   lastName     String
   email        String        @unique
-  phoneNumber  String?       @unique
+  phoneNumber  String        @unique
   password     String
   isActive     Boolean       @default(true)
   isVerified   Boolean       @default(false)

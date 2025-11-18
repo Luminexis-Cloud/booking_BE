@@ -184,41 +184,31 @@ class AuthController {
         });
       }
 
-      // Check if user already exists with phone (only if phone is provided)
-      const phoneNumber = phone && phone.trim() ? phone.trim() : null;
-      if (phoneNumber) {
-        const existingUserByPhone = await prisma.user.findUnique({
-          where: { phoneNumber: phoneNumber },
-        });
+      // Check if user already exists with phone
+      const existingUserByPhone = await prisma.user.findUnique({
+        where: { phoneNumber: phone },
+      });
 
-        if (existingUserByPhone) {
-          return res.status(400).json({
-            success: false,
-            message: "User already exists with this phone number",
-          });
-        }
+      if (existingUserByPhone) {
+        return res.status(400).json({
+          success: false,
+          message: "User already exists with this phone number",
+        });
       }
 
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      // Prepare user data - only include phoneNumber if provided
-      const userData = {
-        firstName,
-        lastName,
-        email,
-        password: hashedPassword,
-        isVerified: true,
-      };
-
-      // Only add phoneNumber if it's provided
-      if (phoneNumber) {
-        userData.phoneNumber = phoneNumber;
-      }
-
       // Create user
       const user = await prisma.user.create({
-        data: userData,
+        data: {
+          firstName,
+          lastName,
+          email,
+          phoneNumber: phone,
+          password: hashedPassword,
+          isVerified: true,
+        },
         select: {
           id: true,
           firstName: true,
