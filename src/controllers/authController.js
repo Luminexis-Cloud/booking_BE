@@ -49,6 +49,7 @@ class AuthController {
                 include: {
                     role: {include: {rolePermissions: {include: {permission: true}}}},
                     company: true,
+                    store: true
                 },
             });
 
@@ -85,9 +86,10 @@ class AuthController {
                         lastName: user.lastName,
                         email: user.email,
                         phoneNumber: user.phoneNumber,
-                        company: user.company?.name,
-                        role: user.role?.name,
-                        permissions,
+                        company: user.company,
+                        role: user.role,
+                        store: user.store,
+                        // permissions,
                     },
                     accessToken,
                     refreshToken,

@@ -1,49 +1,63 @@
-const { PrismaClient } = require("@prisma/client");
+const {PrismaClient} = require("@prisma/client");
 const bcrypt = require("bcryptjs");
-const { generateRandomPassword } = require("../utils/generatePassword");
-const { sendMail } = require("../utils/emailService");
+const {generateRandomPassword} = require("../utils/generatePassword");
+const {sendMail} = require("../utils/emailService");
 
 const prisma = new PrismaClient();
 
 class EmployeeController {
-    // 1️⃣ CREATE EMPLOYEE (enforces company & role limits)
+
+    // 1️⃣ CREATE EMPLOYEE (companyId now comes from body)
     async createEmployee(req, res, next) {
         try {
-            const { firstName, lastName, email, phoneNumber, roleId, storeId } = req.body;
-            const creator = req.user;
+            const {
+                firstName,
+                lastName,
+                email,
+                phoneNumber,
+                roleId,
+                storeId,
+                companyId,        // 👈 NOW COMING FROM REQUEST BODY
+            } = req.body;
 
-            // Ensure creator belongs to a company
-            if (!creator.companyId)
-                return res.status(400).json({ success: false, message: "Creator must belong to a company." });
+            if (!companyId)
+                return res.status(400).json({
+                    success: false,
+                    message: "companyId is required.",
+                });
 
+            // Fetch role and company
             const [role, company] = await Promise.all([
-                prisma.role.findUnique({ where: { id: roleId } }),
+                prisma.role.findUnique({where: {id: roleId}}),
                 prisma.company.findUnique({
-                    where: { id: creator.companyId },
-                    include: { users: true },
+                    where: {id: companyId},
+                    include: {users: true},
                 }),
             ]);
 
             if (!role)
-                return res.status(400).json({ success: false, message: "Invalid role selected." });
-            if (!company)
-                return res.status(404).json({ success: false, message: "Company not found." });
+                return res.status(400).json({success: false, message: "Invalid role selected."});
 
-            // 🧩 Check COMPANY-level user limit (by company.id)
+            if (!company)
+                return res.status(404).json({success: false, message: "Company not found."});
+
+            // 🧩 Company User Limit Check
             const companyUserCount = await prisma.user.count({
-                where: { companyId: company.id },
+                where: {companyId},
             });
+
             if (companyUserCount >= company.userLimit) {
                 return res.status(400).json({
                     success: false,
-                    message: `Company limit reached (${company.userLimit}). Please upgrade your plan.`,
+                    message: `Company user limit reached (${company.userLimit}). Upgrade your plan.`,
                 });
             }
 
-            // 🧩 Check ROLE-level limit (optional)
+            // 🧩 Role Limit Check
             const roleUserCount = await prisma.user.count({
-                where: { companyId: company.id, roleId },
+                where: {companyId, roleId},
             });
+
             if (role.userLimit && roleUserCount >= role.userLimit) {
                 return res.status(400).json({
                     success: false,
@@ -51,10 +65,11 @@ class EmployeeController {
                 });
             }
 
-            // 🧩 Check duplicates
+            // 🧩 Duplicate check
             const existing = await prisma.user.findFirst({
-                where: { OR: [{ email }, { phoneNumber }] },
+                where: {OR: [{email}, {phoneNumber}]},
             });
+
             if (existing) {
                 return res.status(400).json({
                     success: false,
@@ -62,11 +77,11 @@ class EmployeeController {
                 });
             }
 
-            // 🔐 Generate password
+            // Password
             const tempPassword = generateRandomPassword();
             const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
-            // 🧠 Create employee
+            // Create employee
             const employee = await prisma.user.create({
                 data: {
                     firstName,
@@ -74,50 +89,57 @@ class EmployeeController {
                     email,
                     phoneNumber,
                     password: hashedPassword,
-                    companyId: company.id, // ✅ always associate with creator’s company
+                    companyId,
                     storeId,
                     roleId,
                     isVerified: false,
                 },
-                include: { role: true },
+                include: {role: true},
             });
 
-            // ✉️ Send credentials email
+            // Send email
             await sendMail(
                 email,
                 `Welcome to ${company.name}`,
                 `
-          <h3>Welcome to ${company.name}!</h3>
-          <p>Your account has been created as <b>${employee.role.name}</b>.</p>
-          <p>Login Email: ${email}<br>Password: ${tempPassword}</p>
-          <p>Please change your password after first login.</p>
-        `
+                <h3>Welcome to ${company.name}!</h3>
+                <p>Your account has been created as <b>${employee.role.name}</b>.</p>
+                <p>Email: ${email} <br> Temporary Password: ${tempPassword}</p>
+                <p>Please change your password at first login.</p>
+                `
             );
 
             res.status(201).json({
                 success: true,
-                message: "Employee created successfully and credentials emailed.",
-                data: { employee },
+                message: "Employee created successfully.",
+                data: {employee},
             });
+
         } catch (error) {
             console.error("❌ createEmployee error:", error);
             next(error);
         }
     }
 
-    // 2️⃣ LIST EMPLOYEES (company-scoped)
+    // 2️⃣ LIST EMPLOYEES (companyId comes from query or body)
     async listEmployees(req, res, next) {
         try {
-            const user = req.user;
+            const companyId = req.query.companyId || req.body.companyId;
 
-            // Show only users from same company
+            if (!companyId)
+                return res.status(400).json({
+                    success: false,
+                    message: "companyId is required.",
+                });
+
             const employees = await prisma.user.findMany({
-                where: { companyId: user.companyId },
-                include: { role: true, store: true },
-                orderBy: { createdAt: "desc" },
+                where: {companyId},
+                include: {role: true, store: true},
+                orderBy: {createdAt: "desc"},
             });
 
-            res.json({ success: true, employees });
+            res.json({success: true, employees});
+
         } catch (error) {
             next(error);
         }
@@ -126,18 +148,25 @@ class EmployeeController {
     // 3️⃣ GET SINGLE EMPLOYEE
     async getEmployeeById(req, res, next) {
         try {
-            const { id } = req.params;
-            const user = req.user;
+            const {id} = req.params;
+            const companyId = req.query.companyId || req.body.companyId;
+
+            if (!companyId)
+                return res.status(400).json({success: false, message: "companyId is required."});
 
             const employee = await prisma.user.findFirst({
-                where: { id, companyId: user.companyId },
-                include: { role: true, store: true },
+                where: {id, companyId},
+                include: {role: true, store: true},
             });
 
             if (!employee)
-                return res.status(404).json({ success: false, message: "Employee not found in your company" });
+                return res.status(404).json({
+                    success: false,
+                    message: "Employee not found in this company",
+                });
 
-            res.json({ success: true, employee });
+            res.json({success: true, employee});
+
         } catch (error) {
             next(error);
         }
@@ -146,24 +175,34 @@ class EmployeeController {
     // 4️⃣ UPDATE EMPLOYEE
     async updateEmployee(req, res, next) {
         try {
-            const { id } = req.params;
-            const { firstName, lastName, phoneNumber, roleId, storeId, isActive } = req.body;
-            const user = req.user;
+            const {id} = req.params;
+            const companyId = req.body.companyId;
 
-            const employee = await prisma.user.updateMany({
-                where: { id, companyId: user.companyId },
-                data: { firstName, lastName, phoneNumber, roleId, storeId, isActive },
+            if (!companyId)
+                return res.status(400).json({success: false, message: "companyId is required."});
+
+            const updatedCount = await prisma.user.updateMany({
+                where: {id, companyId},
+                data: req.body,
             });
 
-            if (!employee.count)
-                return res.status(404).json({ success: false, message: "Employee not found or not in your company" });
+            if (!updatedCount.count)
+                return res.status(404).json({
+                    success: false,
+                    message: "Employee not found or not in this company.",
+                });
 
             const updated = await prisma.user.findUnique({
-                where: { id },
-                include: { role: true, store: true },
+                where: {id},
+                include: {role: true, store: true},
             });
 
-            res.json({ success: true, message: "Employee updated successfully", data: { updated } });
+            res.json({
+                success: true,
+                message: "Employee updated successfully",
+                data: {updated},
+            });
+
         } catch (error) {
             next(error);
         }
@@ -172,24 +211,32 @@ class EmployeeController {
     // 5️⃣ TOGGLE ACTIVE STATUS
     async toggleEmployeeStatus(req, res, next) {
         try {
-            const { id } = req.params;
-            const user = req.user;
+            const {id} = req.params;
+            const companyId = req.body.companyId;
+
+            if (!companyId)
+                return res.status(400).json({success: false, message: "companyId is required."});
 
             const employee = await prisma.user.findFirst({
-                where: { id, companyId: user.companyId },
+                where: {id, companyId},
             });
+
             if (!employee)
-                return res.status(404).json({ success: false, message: "Employee not found" });
+                return res.status(404).json({
+                    success: false,
+                    message: "Employee not found in this company",
+                });
 
             const updated = await prisma.user.update({
-                where: { id },
-                data: { isActive: !employee.isActive },
+                where: {id},
+                data: {isActive: !employee.isActive},
             });
 
             res.json({
                 success: true,
                 message: `Employee ${updated.isActive ? "activated" : "deactivated"} successfully.`,
             });
+
         } catch (error) {
             next(error);
         }
@@ -198,12 +245,18 @@ class EmployeeController {
     // 6️⃣ DELETE EMPLOYEE
     async deleteEmployee(req, res, next) {
         try {
-            const { id } = req.params;
-            const user = req.user;
+            const {id} = req.params;
+            const companyId = req.body.companyId;
 
-            await prisma.user.deleteMany({ where: { id, companyId: user.companyId } });
+            if (!companyId)
+                return res.status(400).json({success: false, message: "companyId is required."});
 
-            res.json({ success: true, message: "Employee deleted successfully" });
+            await prisma.user.deleteMany({
+                where: {id, companyId},
+            });
+
+            res.json({success: true, message: "Employee deleted successfully"});
+
         } catch (error) {
             next(error);
         }

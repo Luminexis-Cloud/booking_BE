@@ -2,11 +2,16 @@ const storeService = require('../services/storeService');
 const { sendSuccess, sendError } = require('../utils/response');
 
 class StoreController {
-  // Create Store for a User
+
+  // 1️⃣ CREATE STORE
   async createStore(req, res, next) {
     try {
       const { userId } = req.params;
-      const { name, areaOfWork, teamSize, date, signature } = req.body;
+      const { name, areaOfWork, teamSize, date, signature, companyId } = req.body;
+
+      if (!companyId) {
+        return sendError(res, "companyId is required", 400);
+      }
 
       const storeData = {
         name,
@@ -15,39 +20,51 @@ class StoreController {
         date,
         signature,
         userId,
+        companyId,   // ✅ Store belongs to a company now
       };
 
       const store = await storeService.createStore(storeData);
 
-      return sendSuccess(res, 'Store created successfully', {
-        userId,
-        storeId: store.id,
-        name: store.name,
-        areaOfWork: store.areaOfWork,
-        teamSize: store.teamSize,
-        date: store.date,
-        signature: store.signature,
-      }, 201);
+      return sendSuccess(
+          res,
+          "Store created successfully",
+          {
+            storeId: store.id,
+            userId: store.userId,
+            companyId: store.companyId,
+            name: store.name,
+            areaOfWork: store.areaOfWork,
+            teamSize: store.teamSize,
+            date: store.date,
+            signature: store.signature,
+          },
+          201
+      );
     } catch (error) {
       next(error);
     }
   }
 
-  // Get All Stores of a User
+  // 2️⃣ GET ALL STORES BY USER (company-scoped)
   async getStoresByUser(req, res, next) {
     try {
       const { userId } = req.params;
-      const { page = 1, limit = 20 } = req.query;
+      const { page = 1, limit = 20, companyId } = req.query;
+
+      if (!companyId) {
+        return sendError(res, "companyId is required", 400);
+      }
 
       const options = {
         page: parseInt(page),
-        limit: Math.min(parseInt(limit), 100), // Max 100 items per page
+        limit: Math.min(parseInt(limit), 100),
       };
 
-      const result = await storeService.getStoresByUser(userId, options);
+      const result = await storeService.getStoresByUser(userId, companyId, options);
 
-      const formattedStores = result.stores.map(store => ({
+      const formattedStores = result.stores.map((store) => ({
         storeId: store.id,
+        companyId: store.companyId,
         userId,
         name: store.name,
         areaOfWork: store.areaOfWork,
@@ -56,8 +73,9 @@ class StoreController {
         signature: store.signature,
       }));
 
-      return sendSuccess(res, 'All stores fetched successfully', {
+      return sendSuccess(res, "All stores fetched successfully", {
         userId,
+        companyId,
         page: result.pagination.page,
         limit: result.pagination.limit,
         total: result.pagination.total,
@@ -68,65 +86,88 @@ class StoreController {
     }
   }
 
-  // Get Single Store
+  // 3️⃣ GET SINGLE STORE
   async getStoreById(req, res, next) {
     try {
       const { userId, storeId } = req.params;
+      const { companyId } = req.query;
 
-      const store = await storeService.getStoreById(storeId, userId);
+      if (!companyId) {
+        return sendError(res, "companyId is required", 400);
+      }
 
-      return sendSuccess(res, 'Store fetched successfully', {
+      const store = await storeService.getStoreById(storeId, userId, companyId);
+
+      return sendSuccess(res, "Store fetched successfully", {
         store: {
           storeId: store.id,
+          companyId: store.companyId,
           userId,
           name: store.name,
           areaOfWork: store.areaOfWork,
           teamSize: store.teamSize,
           date: store.date,
           signature: store.signature,
-        }
+        },
       });
     } catch (error) {
       next(error);
     }
   }
 
-  // Update Store
+  // 4️⃣ UPDATE STORE
   async updateStore(req, res, next) {
     try {
       const { userId, storeId } = req.params;
+      const { companyId } = req.body;
+
+      if (!companyId) {
+        return sendError(res, "companyId is required", 400);
+      }
+
       const updateData = req.body;
 
-      const store = await storeService.updateStore(storeId, updateData, userId);
+      const store = await storeService.updateStore(storeId, updateData, userId, companyId);
 
-      return sendSuccess(res, 'Store updated successfully', {
+      return sendSuccess(res, "Store updated successfully", {
         store: {
           storeId: store.id,
+          companyId: store.companyId,
           userId,
           name: store.name,
           areaOfWork: store.areaOfWork,
           teamSize: store.teamSize,
           date: store.date,
           signature: store.signature,
-        }
+        },
       });
     } catch (error) {
       next(error);
     }
   }
 
-  // Delete Store
+  // 5️⃣ DELETE STORE
   async deleteStore(req, res, next) {
     try {
       const { userId, storeId } = req.params;
+      const { companyId } = req.body;
 
-      const result = await storeService.deleteStore(storeId, userId);
+      if (!companyId) {
+        return sendError(res, "companyId is required", 400);
+      }
 
-      return sendSuccess(res, 'Store deleted successfully', {
-        message: 'Store deleted successfully',
-        storeId: result.storeId,
-        userId: result.userId,
-      }, 204);
+      const result = await storeService.deleteStore(storeId, userId, companyId);
+
+      return sendSuccess(
+          res,
+          "Store deleted successfully",
+          {
+            storeId: result.storeId,
+            userId: result.userId,
+            companyId: result.companyId,
+          },
+          204
+      );
     } catch (error) {
       next(error);
     }

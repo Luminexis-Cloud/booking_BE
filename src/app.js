@@ -19,7 +19,7 @@ const categoryRoutes = require('./routes/category');
 
 // ✅ New routes
 const employeeRoutes = require('./routes/employee');
-const visibilityRoutes = require('./routes/visibility');
+const visibilityRoutes = require('./routes/visibilityRoutes');
 const rolesRoutes = require('./routes/role');
 
 const app = express();
