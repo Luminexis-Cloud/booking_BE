@@ -31,7 +31,6 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // 🔗 Relations
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -41,16 +40,18 @@ model User {
   roleId String?
   role   Role?   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  // 🔑 Auth/session
   refreshTokens   RefreshToken[]
   userPermissions UserPermission[]
 
-  // 👁️ Visibility (self relation)
+  // user-to-user visibility
   visibleEmployeeLinks EmployeeVisibility[] @relation("Viewer")
   visibleToLinks       EmployeeVisibility[] @relation("Target")
 
-  // 🏪 Manager of stores (reverse relation)
+  // store manager
   managedStores Store[] @relation("StoreToManager")
+
+  // FIX: Add inverse relation for RoleUserVisibility
+  roleVisibilityTargets RoleUserVisibility[] @relation("RoleVisibilityTarget")
 
   @@map("users")
 }
@@ -67,7 +68,6 @@ model Store {
   companyId  String
   managerId  String?
 
-  // ✅ Relations
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   manager   User?   @relation("StoreToManager", fields: [managerId], references: [id])
   employees User[]  @relation("StoreToEmployees")
@@ -96,6 +96,23 @@ model Role {
   company         Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   users           User[]
   rolePermissions RolePermission[]
+
+  // NEW — role-level user visibility rules
+  visibilityRules RoleUserVisibility[]
+}
+
+model RoleUserVisibility {
+  id       String @id @default(cuid())
+  roleId   String
+  targetId String
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  // FIX → Add relation name: "RoleVisibilityTarget"
+  target User @relation("RoleVisibilityTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, targetId])
+  @@map("role_user_visibility")
 }
 
 model Permission {
@@ -109,11 +126,12 @@ model Permission {
 }
 
 model RolePermission {
-  id           String     @id @default(cuid())
+  id           String @id @default(cuid())
   roleId       String
   permissionId String
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
 }
@@ -137,8 +155,9 @@ model UserPermission {
   userId       String
   permissionId String
   effect       PermissionEffect
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permission   Permission       @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, permissionId])
 }

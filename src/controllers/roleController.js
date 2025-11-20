@@ -1,155 +1,198 @@
-const { PrismaClient } = require("@prisma/client");
+const {PrismaClient} = require("@prisma/client");
 const prisma = new PrismaClient();
 
 /**
  * RoleController
- * Handles role management & permission assignment
- * Includes CRUD operations for roles
+ * Handles:
+ *  - Role CRUD
+ *  - Role Permission Management
+ *  - Role → User Visibility Management
  */
 class RoleController {
-    // 1️⃣ Create a new role (company scoped)
+    // 1️⃣ Create a new role
     async createRole(req, res, next) {
         try {
-            const { name, description, userLimit, permissionIds } = req.body;
+            const {name, description, userLimit, permissionIds, visibleUserIds} = req.body;
             const companyId = req.user.companyId;
 
-            // Prevent duplicate role in same company
+            // Check duplicate
             const existing = await prisma.role.findFirst({
-                where: { name, companyId },
+                where: {name, companyId}
             });
             if (existing) {
                 return res.status(400).json({
                     success: false,
-                    message: "Role with this name already exists for this company",
+                    message: "Role already exists for this company"
                 });
             }
 
+            // Create role
             const role = await prisma.role.create({
                 data: {
                     name,
                     description,
                     userLimit: userLimit || 10,
-                    companyId,
-                },
+                    companyId
+                }
             });
 
-            // If permissions assigned
-            if (permissionIds && permissionIds.length > 0) {
-                const rolePermissions = permissionIds.map((pid) => ({
-                    roleId: role.id,
-                    permissionId: pid,
-                }));
+            // Permissions
+            if (permissionIds?.length > 0) {
                 await prisma.rolePermission.createMany({
-                    data: rolePermissions,
-                    skipDuplicates: true,
+                    data: permissionIds.map(pid => ({
+                        roleId: role.id,
+                        permissionId: pid
+                    })),
+                    skipDuplicates: true
+                });
+            }
+
+            // Visibility (Role → Users)
+            if (visibleUserIds?.length > 0) {
+                await prisma.roleUserVisibility.createMany({
+                    data: visibleUserIds.map(uid => ({
+                        roleId: role.id,
+                        targetId: uid
+                    })),
+                    skipDuplicates: true
                 });
             }
 
             res.status(201).json({
                 success: true,
                 message: "Role created successfully",
-                data: role,
+                data: role
             });
+
         } catch (error) {
             console.error("Role Create Error:", error);
             next(error);
         }
     }
 
-    // 2️⃣ Get all roles for company
+    // 2️⃣ Get all roles
     async getAllRoles(req, res, next) {
         try {
             const companyId = req.user.companyId;
 
             const roles = await prisma.role.findMany({
-                where: { companyId },
+                where: {companyId},
                 include: {
-                    rolePermissions: {
-                        include: { permission: true },
+                    rolePermissions: {include: {permission: true}},
+                    visibilityRules: {
+                        include: {
+                            target: {
+                                include: {store: true}
+                            }
+                        }
                     },
-                    users: { select: { id: true, firstName: true, lastName: true } },
-                },
+                    users: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            email: true
+                        }
+                    }
+                }
             });
 
-            res.json({
-                success: true,
-                data: roles,
-            });
+            res.json({success: true, data: roles});
+
         } catch (error) {
             next(error);
         }
     }
 
-    // 3️⃣ Get single role details
+    // 3️⃣ Get a single role
     async getRoleById(req, res, next) {
         try {
-            const { id } = req.params;
+            const {id} = req.params;
             const companyId = req.user.companyId;
 
             const role = await prisma.role.findFirst({
-                where: { id, companyId },
+                where: {id, companyId},
                 include: {
-                    rolePermissions: {
-                        include: { permission: true },
-                    },
-                },
+                    rolePermissions: {include: {permission: true}},
+                    visibilityRules: {
+                        include: {
+                            target: {include: {store: true}}
+                        }
+                    }
+                }
             });
 
             if (!role) {
                 return res.status(404).json({
                     success: false,
-                    message: "Role not found",
+                    message: "Role not found"
                 });
             }
 
-            res.json({ success: true, data: role });
+            res.json({success: true, data: role});
+
         } catch (error) {
             next(error);
         }
     }
 
-    // 4️⃣ Update role info or permissions
+    // 4️⃣ Update role + permissions + visibility
     async updateRole(req, res, next) {
         try {
-            const { id } = req.params;
-            const { name, description, userLimit, permissionIds } = req.body;
+            const {id} = req.params;
+            const {name, description, userLimit, permissionIds, visibleUserIds} = req.body;
             const companyId = req.user.companyId;
 
-            const role = await prisma.role.findFirst({ where: { id, companyId } });
+            const role = await prisma.role.findFirst({where: {id, companyId}});
             if (!role) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Role not found",
-                });
+                return res.status(404).json({success: false, message: "Role not found"});
             }
 
+            // Update role
             await prisma.role.update({
-                where: { id },
-                data: { name, description, userLimit },
+                where: {id},
+                data: {name, description, userLimit}
             });
 
+            // Update permissions
             if (permissionIds) {
-                await prisma.rolePermission.deleteMany({ where: { roleId: id } });
-                const newPerms = permissionIds.map((pid) => ({
-                    roleId: id,
-                    permissionId: pid,
-                }));
+                await prisma.rolePermission.deleteMany({where: {roleId: id}});
                 await prisma.rolePermission.createMany({
-                    data: newPerms,
-                    skipDuplicates: true,
+                    data: permissionIds.map(pid => ({
+                        roleId: id,
+                        permissionId: pid
+                    })),
+                    skipDuplicates: true
                 });
             }
 
-            const updatedRole = await prisma.role.findUnique({
-                where: { id },
-                include: { rolePermissions: { include: { permission: true } } },
+            // Update visibility
+            if (visibleUserIds) {
+                await prisma.roleUserVisibility.deleteMany({where: {roleId: id}});
+
+                await prisma.roleUserVisibility.createMany({
+                    data: visibleUserIds.map(uid => ({
+                        roleId: id,
+                        targetId: uid
+                    })),
+                    skipDuplicates: true
+                });
+            }
+
+            const updated = await prisma.role.findUnique({
+                where: {id},
+                include: {
+                    rolePermissions: {include: {permission: true}},
+                    visibilityRules: {include: {target: true}}
+                }
             });
 
             res.json({
                 success: true,
                 message: "Role updated successfully",
-                data: updatedRole,
+                data: updated
             });
+
         } catch (error) {
             console.error("Role Update Error:", error);
             next(error);
@@ -159,88 +202,133 @@ class RoleController {
     // 5️⃣ Delete role
     async deleteRole(req, res, next) {
         try {
-            const { id } = req.params;
+            const {id} = req.params;
             const companyId = req.user.companyId;
 
             const existing = await prisma.role.findFirst({
-                where: { id, companyId },
+                where: {id, companyId}
             });
             if (!existing) {
                 return res.status(404).json({
                     success: false,
-                    message: "Role not found",
+                    message: "Role not found"
                 });
             }
 
-            const userCount = await prisma.user.count({
-                where: { roleId: id },
+            const assignedUsers = await prisma.user.count({
+                where: {roleId: id}
             });
-            if (userCount > 0) {
+            if (assignedUsers > 0) {
                 return res.status(400).json({
                     success: false,
-                    message: "Cannot delete a role assigned to active users",
+                    message: "Cannot delete a role assigned to users"
                 });
             }
 
-            await prisma.rolePermission.deleteMany({ where: { roleId: id } });
-            await prisma.role.delete({ where: { id } });
+            await prisma.rolePermission.deleteMany({where: {roleId: id}});
+            await prisma.roleUserVisibility.deleteMany({where: {roleId: id}});
+
+            await prisma.role.delete({where: {id}});
 
             res.json({
                 success: true,
-                message: "Role deleted successfully",
+                message: "Role deleted successfully"
             });
+
         } catch (error) {
             next(error);
         }
     }
 
-    // 6️⃣ Assign permissions to a role (manual endpoint)
+    // 6️⃣ Assign Permissions Only
     async assignPermissions(req, res, next) {
         try {
-            const { roleId, permissionIds } = req.body;
+            const {roleId, permissionIds} = req.body;
             const companyId = req.user.companyId;
 
             const role = await prisma.role.findFirst({
-                where: { id: roleId, companyId },
+                where: {id: roleId, companyId}
             });
             if (!role) {
                 return res.status(404).json({
                     success: false,
-                    message: "Role not found",
+                    message: "Role not found"
                 });
             }
 
-            await prisma.rolePermission.deleteMany({ where: { roleId } });
+            await prisma.rolePermission.deleteMany({where: {roleId}});
 
-            const rolePerms = permissionIds.map((pid) => ({
-                roleId,
-                permissionId: pid,
-            }));
             await prisma.rolePermission.createMany({
-                data: rolePerms,
-                skipDuplicates: true,
+                data: permissionIds.map(pid => ({
+                    roleId,
+                    permissionId: pid
+                })),
+                skipDuplicates: true
             });
 
             res.json({
                 success: true,
-                message: "Permissions assigned successfully to role",
+                message: "Permissions updated"
             });
+
         } catch (error) {
             next(error);
         }
     }
 
-    // 7️⃣ List all permissions (helper)
-    async getAllPermissions(req, res, next) {
+    // 7️⃣ Assign / Update Role Visibility
+    async updateRoleVisibility(req, res, next) {
         try {
-            const permissions = await prisma.permission.findMany({
-                orderBy: { module: "asc" },
+            const {roleId, userIds} = req.body;
+            const companyId = req.user.companyId;
+
+            const role = await prisma.role.findFirst({where: {id: roleId, companyId}});
+            if (!role) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Role not found"
+                });
+            }
+
+            await prisma.roleUserVisibility.deleteMany({where: {roleId}});
+
+            await prisma.roleUserVisibility.createMany({
+                data: userIds.map(uid => ({
+                    roleId,
+                    targetId: uid
+                })),
+                skipDuplicates: true
             });
 
             res.json({
                 success: true,
-                data: permissions,
+                message: "Role visibility updated successfully"
             });
+
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // 8️⃣ Get all users available for assigning visibility
+    async getAvailableUsers(req, res, next) {
+        try {
+            const companyId = req.user.companyId;
+
+            const users = await prisma.user.findMany({
+                where: {companyId},
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    storeId: true,
+                    store: true
+                }
+            });
+
+            res.json({success: true, data: users});
+
         } catch (error) {
             next(error);
         }

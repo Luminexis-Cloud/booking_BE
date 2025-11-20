@@ -4,9 +4,11 @@ const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🚀 Starting full seed with company user limit...");
+  console.log("🚀 Starting full seed...");
 
-  // 1️⃣ Company with user limit
+  //
+  // 1️⃣ COMPANY
+  //
   const company = await prisma.company.upsert({
     where: { name: "BeautyLab Co." },
     update: {},
@@ -17,89 +19,94 @@ async function main() {
     },
   });
 
-  // 2️⃣ Roles
-  const [superAdminRole, adminRole, managerRole, employeeRole] = await Promise.all([
-    prisma.role.upsert({
-      where: { name: "SuperAdmin" },
-      update: {},
-      create: {
-        name: "SuperAdmin",
-        description: "Full control over system",
-        userLimit: 100,
-        companyId: company.id,
-      },
-    }),
-    prisma.role.upsert({
-      where: { name: "Admin" },
-      update: {},
-      create: {
-        name: "Admin",
-        description: "Manages managers and employees",
-        userLimit: 50,
-        companyId: company.id,
-      },
-    }),
-    prisma.role.upsert({
-      where: { name: "Manager" },
-      update: {},
-      create: {
-        name: "Manager",
-        description: "Manages assigned employees only",
-        userLimit: 20,
-        companyId: company.id,
-      },
-    }),
-    prisma.role.upsert({
-      where: { name: "Employee" },
-      update: {},
-      create: {
-        name: "Employee",
-        description: "Performs assigned tasks only",
-        userLimit: 0,
-        companyId: company.id,
-      },
-    }),
-  ]);
+  //
+  // 2️⃣ ROLES
+  //
+  const [superAdminRole, adminRole, managerRole, employeeRole] =
+      await Promise.all([
+        prisma.role.upsert({
+          where: { name: "SuperAdmin" },
+          update: {},
+          create: {
+            name: "SuperAdmin",
+            description: "Full control over system",
+            userLimit: 100,
+            companyId: company.id,
+          },
+        }),
+        prisma.role.upsert({
+          where: { name: "Admin" },
+          update: {},
+          create: {
+            name: "Admin",
+            description: "Manages managers and employees",
+            userLimit: 50,
+            companyId: company.id,
+          },
+        }),
+        prisma.role.upsert({
+          where: { name: "Manager" },
+          update: {},
+          create: {
+            name: "Manager",
+            description: "Manages assigned employees only",
+            userLimit: 20,
+            companyId: company.id,
+          },
+        }),
+        prisma.role.upsert({
+          where: { name: "Employee" },
+          update: {},
+          create: {
+            name: "Employee",
+            description: "Performs assigned tasks only",
+            userLimit: 0,
+            companyId: company.id,
+          },
+        }),
+      ]);
 
-  // 3️⃣ Permissions
+  //
+  // 3️⃣ PERMISSIONS
+  //
   const permissionsData = [
-    // 👥 Employees
-    { name: "Employees_view_all", module: "Employees", action: "view_all", description: "View all company employees" },
-    { name: "Employees_view_specific", module: "Employees", action: "view_specific", description: "View assigned employees only" },
-    { name: "Employees_add", module: "Employees", action: "add", description: "Add new employees" },
-    { name: "Employees_edit_other", module: "Employees", action: "edit_other", description: "Edit other employees" },
-    { name: "Employees_delete", module: "Employees", action: "delete", description: "Delete employees" },
+    // Employees
+    { name: "Employees_view_all", module: "Employees", action: "view_all" },
+    { name: "Employees_view_specific", module: "Employees", action: "view_specific" },
+    { name: "Employees_add", module: "Employees", action: "add" },
+    { name: "Employees_edit_other", module: "Employees", action: "edit_other" },
+    { name: "Employees_delete", module: "Employees", action: "delete" },
 
-    // 📅 Appointments
-    { name: "Appointments_add", module: "Appointments", action: "add", description: "Add new appointments" },
-    { name: "Appointments_edit", module: "Appointments", action: "edit", description: "Edit appointments" },
-    { name: "Appointments_edit_past", module: "Appointments", action: "edit_past", description: "Edit past appointments" },
-    { name: "Appointments_delete", module: "Appointments", action: "delete", description: "Delete appointments" },
-    { name: "Appointments_view_all", module: "Appointments", action: "view_all", description: "View all appointments" },
+    // Appointments
+    { name: "Appointments_add", module: "Appointments", action: "add" },
+    { name: "Appointments_edit", module: "Appointments", action: "edit" },
+    { name: "Appointments_edit_past", module: "Appointments", action: "edit_past" },
+    { name: "Appointments_delete", module: "Appointments", action: "delete" },
+    { name: "Appointments_view_all", module: "Appointments", action: "view_all" },
 
-    // 💅 Services
-    { name: "Services_add_edit", module: "Services", action: "add_edit", description: "Add or edit services" },
-    { name: "Services_delete", module: "Services", action: "delete", description: "Delete services" },
-    { name: "Services_view_all", module: "Services", action: "view_all", description: "View all services" },
+    // Services
+    { name: "Services_add_edit", module: "Services", action: "add_edit" },
+    { name: "Services_delete", module: "Services", action: "delete" },
+    { name: "Services_view_all", module: "Services", action: "view_all" },
 
-    // 🗂 Categories
-    { name: "Categories_add_edit", module: "Categories", action: "add_edit", description: "Add/edit categories" },
-    { name: "Categories_delete", module: "Categories", action: "delete", description: "Delete categories" },
-    { name: "Categories_view_all", module: "Categories", action: "view_all", description: "View all categories" },
+    // Categories
+    { name: "Categories_add_edit", module: "Categories", action: "add_edit" },
+    { name: "Categories_delete", module: "Categories", action: "delete" },
+    { name: "Categories_view_all", module: "Categories", action: "view_all" },
 
-    // 👤 Clients
-    { name: "Clients_view_all", module: "Clients", action: "view_all", description: "View all clients" },
-    { name: "Clients_add_edit", module: "Clients", action: "add_edit", description: "Add or edit clients" },
-    { name: "Clients_delete", module: "Clients", action: "delete", description: "Delete clients" },
-    { name: "Clients_view_phone_numbers", module: "Clients", action: "view_phone_numbers", description: "View client phone numbers" },
+    // Clients
+    { name: "Clients_view_all", module: "Clients", action: "view_all" },
+    { name: "Clients_add_edit", module: "Clients", action: "add_edit" },
+    { name: "Clients_delete", module: "Clients", action: "delete" },
+    { name: "Clients_view_phone_numbers", module: "Clients", action: "view_phone_numbers" },
 
-    // 💰 Invoices
-    { name: "Invoices_add_edit", module: "Invoices", action: "add_edit", description: "Create or edit invoices" },
-    { name: "Invoices_delete", module: "Invoices", action: "delete", description: "Delete invoices" },
-    { name: "Invoices_view", module: "Invoices", action: "view", description: "View invoices" },
+    // Invoices
+    { name: "Invoices_add_edit", module: "Invoices", action: "add_edit" },
+    { name: "Invoices_delete", module: "Invoices", action: "delete" },
+    { name: "Invoices_view", module: "Invoices", action: "view" },
 
-    // 📊 Reports
-    { name: "Reports_view", module: "Reports", action: "view", description: "View business reports" },
+    // Reports
+    { name: "Reports_view", module: "Reports", action: "view" },
   ];
 
   const createdPermissions = [];
@@ -112,12 +119,21 @@ async function main() {
     createdPermissions.push(perm);
   }
 
-  // 4️⃣ Role–Permission Mapping
+  //
+  // 4️⃣ ROLE–PERMISSION MAPPING
+  //
   const rolePerms = [];
 
   for (const p of createdPermissions) {
+    // SuperAdmin → all permissions
     rolePerms.push({ roleId: superAdminRole.id, permissionId: p.id });
-    if (!p.name.endsWith("_delete")) rolePerms.push({ roleId: adminRole.id, permissionId: p.id });
+
+    // Admin → all except delete
+    if (!p.name.endsWith("_delete")) {
+      rolePerms.push({ roleId: adminRole.id, permissionId: p.id });
+    }
+
+    // Manager
     if (
         [
           "Employees_view_specific",
@@ -130,6 +146,8 @@ async function main() {
     ) {
       rolePerms.push({ roleId: managerRole.id, permissionId: p.id });
     }
+
+    // Employee
     if (["Appointments_add", "Appointments_edit", "Reports_view"].includes(p.name)) {
       rolePerms.push({ roleId: employeeRole.id, permissionId: p.id });
     }
@@ -137,7 +155,9 @@ async function main() {
 
   await prisma.rolePermission.createMany({ data: rolePerms, skipDuplicates: true });
 
-  // 5️⃣ Users
+  //
+  // 5️⃣ USERS
+  //
   const hashed = await bcrypt.hash("password123", 12);
 
   const superAdmin = await prisma.user.upsert({
@@ -155,7 +175,6 @@ async function main() {
     },
   });
 
-  // ✅ Fix: manager relation must be created via managerId on Store
   const store = await prisma.store.upsert({
     where: { name: "Main Store" },
     update: {},
@@ -166,7 +185,7 @@ async function main() {
       date: new Date().toISOString(),
       signature: "Authorized",
       companyId: company.id,
-      managerId: superAdmin.id, // ✅ matches @relation("StoreToManager")
+      managerId: superAdmin.id,
     },
   });
 
@@ -234,7 +253,34 @@ async function main() {
     },
   });
 
-  // 6️⃣ Visibility Mapping — Manager can view both employees
+  //
+  // 6️⃣ ROLE → USER VISIBILITY (NEW)
+  //
+  // Example:
+  // SuperAdmin role can see Admin, Manager, Employee 1, Employee 2
+
+  await prisma.roleUserVisibility.createMany({
+    data: [
+      { roleId: superAdminRole.id, targetId: admin.id },
+      { roleId: superAdminRole.id, targetId: manager.id },
+      { roleId: superAdminRole.id, targetId: employee1.id },
+      { roleId: superAdminRole.id, targetId: employee2.id },
+
+      // Admin can see Manager + employees
+      { roleId: adminRole.id, targetId: manager.id },
+      { roleId: adminRole.id, targetId: employee1.id },
+      { roleId: adminRole.id, targetId: employee2.id },
+
+      // Manager can see only assigned employees
+      { roleId: managerRole.id, targetId: employee1.id },
+      { roleId: managerRole.id, targetId: employee2.id },
+    ],
+    skipDuplicates: true,
+  });
+
+  //
+  // 7️⃣ USER → USER VISIBILITY (EmployeeVisibility)
+  //
   await prisma.employeeVisibility.createMany({
     data: [
       { viewerId: manager.id, targetId: employee1.id },
@@ -243,7 +289,7 @@ async function main() {
     skipDuplicates: true,
   });
 
-  console.log("✅ Full seed complete: Company, Roles, Permissions, Users, Visibility");
+  console.log("✅ Seed completed successfully!");
 }
 
 main()

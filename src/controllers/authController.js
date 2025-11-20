@@ -44,38 +44,82 @@ class AuthController {
     async login(req, res, next) {
         try {
             const {email, password} = req.body;
+
             const user = await prisma.user.findUnique({
                 where: {email},
                 include: {
-                    role: {include: {rolePermissions: {include: {permission: true}}}},
+                    role: {
+                        include: {
+                            rolePermissions: {include: {permission: true}}
+                        }
+                    },
                     company: true,
-                    store: true
-                },
+                    store: true   // <--- returns store info if assigned
+                }
             });
 
-            if (!user) return res.status(401).json({success: false, message: "Invalid credentials"});
-            if (!user.isActive) return res.status(401).json({success: false, message: "Account is deactivated"});
-            const isPasswordValid = await bcrypt.compare(password, user.password);
-            if (!isPasswordValid) return res.status(401).json({success: false, message: "Invalid credentials"});
+            if (!user)
+                return res.status(401).json({success: false, message: "Invalid credentials"});
+
+            if (!user.isActive)
+                return res.status(401).json({success: false, message: "Account is deactivated"});
+
+            const valid = await bcrypt.compare(password, user.password);
+            if (!valid)
+                return res.status(401).json({success: false, message: "Invalid credentials"});
 
             const {accessToken, refreshToken} = authService.generateTokens(user.id);
+
             await prisma.refreshToken.deleteMany({where: {userId: user.id}});
             await prisma.refreshToken.create({
                 data: {
                     token: refreshToken,
                     userId: user.id,
                     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-                },
+                }
             });
 
-            const permissions =
-                user.role?.rolePermissions?.map((rp) => ({
-                    id: rp.permission.id,
-                    name: rp.permission.name,
-                    module: rp.permission.module,
-                    action: rp.permission.action,
-                })) || [];
+            // ⭐ GET ONLY ROLE VISIBILITY USERS (with store info)
+            const roleVisibility = await prisma.roleUserVisibility.findMany({
+                where: {roleId: user.roleId},
+                include: {
+                    target: {
+                        include: {
+                            store: true,      // <--- returns store info for each visible user
+                            company: true
+                        }
+                    }
+                }
+            });
 
+            // Clean visibility users
+            const visibilityUsers = roleVisibility.map(v => ({
+                id: v.target.id,
+                firstName: v.target.firstName,
+                lastName: v.target.lastName,
+                email: v.target.email,
+                phoneNumber: v.target.phoneNumber,
+                companyId: v.target.companyId,
+                storeId: v.target.storeId,
+                store: v.target.store   // <--- store info included here
+            }));
+
+            // ⭐ Clean Role
+            const cleanRole = {
+                id: user.role.id,
+                name: user.role.name,
+                description: user.role.description
+            };
+
+            // ⭐ Clean Permissions
+            const permissions = user.role.rolePermissions.map(rp => ({
+                id: rp.permission.id,
+                name: rp.permission.name,
+                module: rp.permission.module,
+                action: rp.permission.action
+            }));
+
+            // ⭐ Final Response
             res.json({
                 success: true,
                 message: "Login successful",
@@ -86,19 +130,30 @@ class AuthController {
                         lastName: user.lastName,
                         email: user.email,
                         phoneNumber: user.phoneNumber,
+
+                        // Company & Store Info
+                        companyId: user.companyId,
+                        storeId: user.storeId,
                         company: user.company,
-                        role: user.role,
-                        store: user.store,
-                        // permissions,
+                        store: user.store,   // WILL BE null only if user has no store
+
+                        // Role & Permissions
+                        role: cleanRole,
+                        permissions,
+
+                        // Visibility with store info
+                        visibility: visibilityUsers
                     },
                     accessToken,
-                    refreshToken,
-                },
+                    refreshToken
+                }
             });
-        } catch (error) {
-            next(error);
+
+        } catch (err) {
+            next(err);
         }
     }
+
 
     async signup(req, res, next) {
         try {
