@@ -333,6 +333,25 @@ class RoleController {
             next(error);
         }
     }
+
+    // 9️⃣ Get All Permissions (required for frontend role permission screen)
+    async getAllPermissions(req, res, next) {
+        try {
+            const permissions = await prisma.permission.findMany({
+                orderBy: { module: "asc" }
+            });
+
+            res.json({
+                success: true,
+                data: permissions
+            });
+
+        } catch (error) {
+            console.error("Get All Permissions Error:", error);
+            next(error);
+        }
+    }
+
 }
 
 module.exports = new RoleController();
