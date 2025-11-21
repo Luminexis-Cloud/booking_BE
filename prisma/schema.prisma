@@ -7,24 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//
+// =========================
+//        COMPANY
+// =========================
+//
+
 model Company {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  domain    String?
-  userLimit Int      @default(100)
-  users     User[]
-  stores    Store[]
-  roles     Role[]
+  id               String   @id @default(cuid())
+  name             String   @unique
+  signatureName    String?
+  country          String?
+  industry         String?
+  teamMembersCount Int?
+  domain           String?
+  userLimit        Int      @default(100)
+
+  users   User[]
+  stores  Store[]
+  roles   Role[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+//
+// =========================
+//          USER
+// =========================
+//
 
 model User {
   id          String   @id @default(cuid())
   firstName   String
   lastName    String
   email       String   @unique
-  phoneNumber String   @unique
+  phoneNumber String
   password    String
   isActive    Boolean  @default(true)
   isVerified  Boolean  @default(false)
@@ -35,26 +53,32 @@ model User {
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   storeId String?
-  store   Store?  @relation("StoreToEmployees", fields: [storeId], references: [id])
+  store   Store? @relation("StoreToEmployees", fields: [storeId], references: [id])
 
   roleId String?
-  role   Role?   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  role   Role? @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   refreshTokens   RefreshToken[]
   userPermissions UserPermission[]
 
-  // user-to-user visibility
   visibleEmployeeLinks EmployeeVisibility[] @relation("Viewer")
   visibleToLinks       EmployeeVisibility[] @relation("Target")
 
-  // store manager
   managedStores Store[] @relation("StoreToManager")
 
-  // FIX: Add inverse relation for RoleUserVisibility
   roleVisibilityTargets RoleUserVisibility[] @relation("RoleVisibilityTarget")
+
+  appointments Appointment[]
+  clients      Client[]
 
   @@map("users")
 }
+
+//
+// =========================
+//          STORE
+// =========================
+//
 
 model Store {
   id         String   @id @default(cuid())
@@ -72,8 +96,19 @@ model Store {
   manager   User?   @relation("StoreToManager", fields: [managerId], references: [id])
   employees User[]  @relation("StoreToEmployees")
 
+  services      Service[]
+  categories    Category[]
+  clients       Client[]
+  appointments  Appointment[]
+
   @@map("stores")
 }
+
+//
+// =========================
+//   EMPLOYEE VISIBILITY
+// =========================
+//
 
 model EmployeeVisibility {
   id       String @id @default(cuid())
@@ -87,6 +122,12 @@ model EmployeeVisibility {
   @@map("employee_visibility")
 }
 
+//
+// =========================
+//            ROLE
+// =========================
+//
+
 model Role {
   id              String           @id @default(cuid())
   name            String           @unique
@@ -96,8 +137,6 @@ model Role {
   company         Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   users           User[]
   rolePermissions RolePermission[]
-
-  // NEW — role-level user visibility rules
   visibilityRules RoleUserVisibility[]
 }
 
@@ -106,14 +145,18 @@ model RoleUserVisibility {
   roleId   String
   targetId String
 
-  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
-  // FIX → Add relation name: "RoleVisibilityTarget"
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
   target User @relation("RoleVisibilityTarget", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, targetId])
   @@map("role_user_visibility")
 }
+
+//
+// =========================
+//         PERMISSIONS
+// =========================
+//
 
 model Permission {
   id              String           @id @default(cuid())
@@ -136,15 +179,6 @@ model RolePermission {
   @@unique([roleId, permissionId])
 }
 
-model RefreshToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
 enum PermissionEffect {
   ALLOW
   DENY
@@ -160,4 +194,144 @@ model UserPermission {
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, permissionId])
+}
+
+//
+// =========================
+//      REFRESH TOKEN
+// =========================
+//
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+//
+// =========================
+//         OTP CODES
+// =========================
+//
+
+model OtpCode {
+  id          Int      @id @default(autoincrement())
+  code        String
+  email       String?
+  phoneNumber String?
+  isUsed      Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}
+
+//
+// =========================
+//        CATEGORY
+// =========================
+//
+
+model Category {
+  id          String    @id @default(cuid())
+  categoryId  String    @unique @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  storeId  String
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  services Service[]
+
+  @@map("categories")
+}
+
+//
+// =========================
+//         SERVICE
+// =========================
+//
+
+model Service {
+  id              String   @id @default(cuid())
+  serviceId       String   @unique @default(cuid()) @map("serviceid")
+  name            String
+  description     String?
+  durationMinutes Int
+  price           Json
+  colorHex        String?
+  deposit         Json
+  isActive        Boolean  @default(true)
+  date            String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  storeId    String @map("storeId")
+  categoryId String @map("categoryid")
+
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@map("services")
+}
+
+//
+// =========================
+//       APPOINTMENTS
+// =========================
+//
+
+model Appointment {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  type        String   @default("general")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  storeId String
+  store   Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@map("appointments")
+}
+
+//
+// =========================
+//          CLIENT
+// =========================
+//
+
+model Client {
+  id          String   @id @default(cuid())
+  clientId    String   @unique @default(cuid())
+  name        String
+  phone       String
+  email       String?
+  notes       String?
+  birthday    DateTime?
+  information Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId  String
+  storeId String
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  appointments Appointment[]
+
+  @@map("clients")
 }

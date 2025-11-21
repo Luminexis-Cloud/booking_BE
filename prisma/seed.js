@@ -14,7 +14,11 @@ async function main() {
     update: {},
     create: {
       name: "BeautyLab Co.",
-      domain: "beautylab.com",
+      domain: "beautylab",        // nickname
+      signatureName: "BeautyLab Signature",
+      country: "USA",
+      industry: "Beauty & Salon",
+      teamMembersCount: 10,
       userLimit: 100,
     },
   });
@@ -125,15 +129,12 @@ async function main() {
   const rolePerms = [];
 
   for (const p of createdPermissions) {
-    // SuperAdmin → all permissions
     rolePerms.push({ roleId: superAdminRole.id, permissionId: p.id });
 
-    // Admin → all except delete
     if (!p.name.endsWith("_delete")) {
       rolePerms.push({ roleId: adminRole.id, permissionId: p.id });
     }
 
-    // Manager
     if (
         [
           "Employees_view_specific",
@@ -147,7 +148,6 @@ async function main() {
       rolePerms.push({ roleId: managerRole.id, permissionId: p.id });
     }
 
-    // Employee
     if (["Appointments_add", "Appointments_edit", "Reports_view"].includes(p.name)) {
       rolePerms.push({ roleId: employeeRole.id, permissionId: p.id });
     }
@@ -254,11 +254,8 @@ async function main() {
   });
 
   //
-  // 6️⃣ ROLE → USER VISIBILITY (NEW)
+  // 6️⃣ ROLE → USER VISIBILITY
   //
-  // Example:
-  // SuperAdmin role can see Admin, Manager, Employee 1, Employee 2
-
   await prisma.roleUserVisibility.createMany({
     data: [
       { roleId: superAdminRole.id, targetId: admin.id },
@@ -266,12 +263,10 @@ async function main() {
       { roleId: superAdminRole.id, targetId: employee1.id },
       { roleId: superAdminRole.id, targetId: employee2.id },
 
-      // Admin can see Manager + employees
       { roleId: adminRole.id, targetId: manager.id },
       { roleId: adminRole.id, targetId: employee1.id },
       { roleId: adminRole.id, targetId: employee2.id },
 
-      // Manager can see only assigned employees
       { roleId: managerRole.id, targetId: employee1.id },
       { roleId: managerRole.id, targetId: employee2.id },
     ],
@@ -279,7 +274,7 @@ async function main() {
   });
 
   //
-  // 7️⃣ USER → USER VISIBILITY (EmployeeVisibility)
+  // 7️⃣ USER → USER VISIBILITY
   //
   await prisma.employeeVisibility.createMany({
     data: [
