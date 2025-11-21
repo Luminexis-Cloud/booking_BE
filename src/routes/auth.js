@@ -6,153 +6,126 @@ const { handleValidationErrors } = require("../middlewares/validation");
 
 const router = express.Router();
 
-
-// ======================================================
-// VALIDATIONS
-// ======================================================
-
-// STEP 1 — Check Email
+// Check Email
 const checkEmailValidation = [
   body("email")
-      .isEmail()
-      .normalizeEmail()
-      .withMessage("Valid email is required"),
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Valid email is required"),
 ];
 
-// STEP 2 — Create Basic Account
+// Create Basic Account
 const createAccountBasicValidation = [
-  body("name")
-      .notEmpty()
-      .withMessage("Name is required"),
+  body("name").notEmpty().withMessage("Name is required"),
   body("email")
-      .isEmail()
-      .normalizeEmail()
-      .withMessage("Valid email is required"),
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Valid email is required"),
   body("password")
-      .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters"),
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters"),
   body("confirmPassword")
-      .notEmpty()
-      .custom((value, { req }) => value === req.body.password)
-      .withMessage("Passwords do not match"),
+    .notEmpty()
+    .custom((value, { req }) => value === req.body.password)
+    .withMessage("Passwords do not match"),
 ];
 
-// STEP 3 — Complete Company Setup
+//  Complete Company Setup
 const completeSetupValidation = [
-  body("userId")
-      .notEmpty()
-      .withMessage("userId is required"),
+  body("userId").notEmpty().withMessage("userId is required"),
   body("phone")
-      .notEmpty()
-      .isMobilePhone("any")
-      .withMessage("Valid phone number is required"),
-  body("companyName")
-      .notEmpty()
-      .withMessage("Company name is required"),
-  body("nickname")
-      .optional(),
-  body("country")
-      .optional(),
-  body("industry")
-      .optional(),
+    .notEmpty()
+    .isMobilePhone("any")
+    .withMessage("Valid phone number is required"),
+  body("companyName").notEmpty().withMessage("Company name is required"),
+  body("nickname").optional(),
+  body("country").optional(),
+  body("industry").optional(),
   body("teamMembersCount")
-      .optional()
-      .isNumeric()
-      .withMessage("teamMembersCount must be a number"),
+    .optional()
+    .isNumeric()
+    .withMessage("teamMembersCount must be a number"),
 ];
 
-// LEGACY / OLD Signup Validation
+//  Signup Validation
 const signupValidation = [
   body("email")
-      .isEmail()
-      .normalizeEmail()
-      .withMessage("Please provide a valid email"),
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Please provide a valid email"),
   body("password")
-      .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters long"),
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters long"),
 ];
 
 // Login validation
 const loginValidation = [
   body("email")
-      .isEmail()
-      .normalizeEmail()
-      .withMessage("Please provide a valid email"),
-  body("password")
-      .notEmpty()
-      .withMessage("Password is required"),
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Please provide a valid email"),
+  body("password").notEmpty().withMessage("Password is required"),
 ];
 
-
-// ======================================================
-// OTP ROUTES (unchanged)
-// ======================================================
+// OTP ROUTES
 router.post(
-    "/send-signup-otp",
-    [
-      body("phoneNumber")
-          .notEmpty()
-          .isMobilePhone("any")
-          .withMessage("Valid phone number is required"),
-    ],
-    handleValidationErrors,
-    authController.sendSignupOtp
+  "/send-signup-otp",
+  [body("email").notEmpty().isEmail().withMessage("Valid email is required")],
+  handleValidationErrors,
+  authController.sendSignupOtp
 );
 
 router.post(
-    "/verify-signup-otp",
-    [
-      body("phoneNumber")
-          .notEmpty()
-          .isMobilePhone("any")
-          .withMessage("Valid phone number is required"),
-      body("otp")
-          .isLength({ min: 6, max: 6 })
-          .isNumeric()
-          .withMessage("OTP must be 6 digits"),
-    ],
-    handleValidationErrors,
-    authController.verifySignupOtp
+  "/verify-signup-otp",
+  [
+    body("email").notEmpty().isEmail().withMessage("Valid email is required"),
+
+    body("otp")
+      .isLength({ min: 6, max: 6 })
+      .isNumeric()
+      .withMessage("OTP must be 6 digits"),
+  ],
+  handleValidationErrors,
+  authController.verifySignupOtp
 );
 
-
-// ======================================================
-// NEW MULTI-STEP SIGNUP ROUTES
-// ======================================================
-
-// STEP 1 — Email Check
+// Email Check
 router.post(
-    "/check-email",
-    checkEmailValidation,
-    handleValidationErrors,
-    authController.checkEmail
+  "/check-email",
+  checkEmailValidation,
+  handleValidationErrors,
+  authController.checkEmail
 );
 
-// STEP 2 — Create Account Basic
+// Create Account Basic
 router.post(
-    "/create-account-basic",
-    createAccountBasicValidation,
-    handleValidationErrors,
-    authController.createAccountBasic
+  "/create-account-basic",
+  createAccountBasicValidation,
+  handleValidationErrors,
+  authController.createAccountBasic
 );
 
-// STEP 3 — Complete Company Setup
+// Complete Company Setup
 router.post(
-    "/complete-company-setup",
-    completeSetupValidation,
-    handleValidationErrors,
-    authController.completeCompanySetup
+  "/complete-company-setup",
+  completeSetupValidation,
+  handleValidationErrors,
+  authController.completeCompanySetup
 );
 
+router.post(
+  "/signup",
+  signupValidation,
+  handleValidationErrors,
+  authController.signup
+);
 
-// ======================================================
-// ORIGINAL SIGNUP & LOGIN ROUTES
-// ======================================================
-
-router.post("/signup", signupValidation, handleValidationErrors, authController.signup);
-
-router.post("/login", loginValidation, handleValidationErrors, authController.login);
-
+router.post(
+  "/login",
+  loginValidation,
+  handleValidationErrors,
+  authController.login
+);
 
 // ======================================================
 // OPTIONAL ROUTES (for future use)
