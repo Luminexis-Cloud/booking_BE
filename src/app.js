@@ -17,6 +17,11 @@ const clientRoutes = require('./routes/client');
 const categoryRoutes = require('./routes/category');
 // const appointmentRoutes = require('./routes/appointment'); // Commented out for now
 
+// ✅ New routes
+const employeeRoutes = require('./routes/employee');
+const visibilityRoutes = require('./routes/visibilityRoutes');
+const rolesRoutes = require('./routes/role');
+
 const app = express();
 
 // Security middleware
@@ -74,6 +79,12 @@ app.use('/api', storeRoutes);
 app.use('/api', serviceRoutes);
 app.use('/api', clientRoutes);
 app.use('/api', categoryRoutes);
+
+// ✅ Added new modules
+app.use('/api/employees', employeeRoutes);
+app.use('/api/visibility', visibilityRoutes);
+app.use('/api/roles', rolesRoutes);
+
 // app.use('/api', appointmentRoutes); // Commented out for now
 
 // 404 handler
