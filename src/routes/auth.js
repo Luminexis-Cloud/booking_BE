@@ -67,6 +67,14 @@ const loginValidation = [
   body("password").notEmpty().withMessage("Password is required"),
 ];
 
+const updatePasswordValidation = [
+  body("email").isEmail().withMessage("Valid email is required"),
+  body("newPassword")
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters long"),
+];
+
+
 // OTP ROUTES
 router.post(
   "/send-signup-otp",
@@ -125,6 +133,13 @@ router.post(
   loginValidation,
   handleValidationErrors,
   authController.login
+);
+
+router.post(
+  "/update-password",
+  updatePasswordValidation,
+  handleValidationErrors,
+  authController.updatePassword
 );
 
 // ======================================================
