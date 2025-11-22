@@ -31,10 +31,9 @@ const createAccountBasicValidation = [
 //  Complete Company Setup
 const completeSetupValidation = [
   body("userId").notEmpty().withMessage("userId is required"),
-  body("phone")
-    .notEmpty()
-    .isMobilePhone("any")
-    .withMessage("Valid phone number is required"),
+  body("phone").isLength({ min: 10, max: 15 })
+  .matches(/^[0-9]+$/)
+  .withMessage("Phone must contain only numbers"),
   body("companyName").notEmpty().withMessage("Company name is required"),
   body("nickname").optional(),
   body("country").optional(),
