@@ -10,7 +10,6 @@ const router = express.Router();
 const checkEmailValidation = [
   body("email")
     .isEmail()
-    .normalizeEmail()
     .withMessage("Valid email is required"),
 ];
 
@@ -19,7 +18,6 @@ const createAccountBasicValidation = [
   body("name").notEmpty().withMessage("Name is required"),
   body("email")
     .isEmail()
-    .normalizeEmail()
     .withMessage("Valid email is required"),
   body("password")
     .isLength({ min: 6 })
