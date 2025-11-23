@@ -1,4 +1,4 @@
-const Store = require('../models/Store');
+const Store = require("../models/Store");
 
 class StoreService {
   async createStore(storeData) {
@@ -17,25 +17,25 @@ class StoreService {
     }
   }
 
-  async getStoreById(storeId, userId) {
+  async getStoreById(storeId, userId, companyId) {
     try {
-      return await Store.getStoreById(storeId, userId);
+      return await Store.getStoreById(storeId, userId, companyId);
     } catch (error) {
       throw error;
     }
   }
 
-  async updateStore(storeId, updateData, userId) {
+  async updateStore(storeId, updateData, userId, companyId) {
     try {
-      return await Store.updateStore(storeId, updateData, userId);
+      return await Store.updateStore(storeId, updateData, userId, companyId);
     } catch (error) {
       throw error;
     }
   }
 
-  async deleteStore(storeId, userId) {
+  async deleteStore(storeId, userId, companyId) {
     try {
-      return await Store.deleteStore(storeId, userId);
+      return await Store.deleteStore(storeId, userId, companyId);
     } catch (error) {
       throw error;
     }
