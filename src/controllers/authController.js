@@ -87,14 +87,13 @@ class AuthController {
         industry,
         teamMembersCount,
       } = req.body;
-
+      
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user)
         return res
           .status(404)
           .json({ success: false, message: "User not found" });
 
-      // Create company with new fields
       const company = await prisma.company.create({
         data: {
           name: companyName,
@@ -107,12 +106,30 @@ class AuthController {
         },
       });
 
+      const store = await prisma.store.create({
+        data: {
+          name: companyName,
+          areaOfWork: industry,
+          teamSize: teamMembersCount,
+          date: new Date().toISOString(),
+          signature: nickname,
+
+          manager: {
+            connect: { id: userId },
+          },
+
+          company: {
+            connect: { id: company.id },
+          },
+        },
+      });
+
+
       // SuperAdmin role
       const role = await prisma.role.findUnique({
         where: { name: "SuperAdmin" },
       });
 
-      // Update user with real phone + companyId + role
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
@@ -120,11 +137,11 @@ class AuthController {
           companyId: company.id,
           roleId: role.id,
           isVerified: true,
+          storeId: store.id
         },
         include: { role: true, company: true },
       });
 
-      // Generate tokens
       const { accessToken, refreshToken } = authService.generateTokens(userId);
 
       await prisma.refreshToken.deleteMany({ where: { userId } });

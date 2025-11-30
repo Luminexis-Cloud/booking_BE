@@ -1,5 +1,5 @@
 // Custom Store Model - Business Logic Layer
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
@@ -7,84 +7,77 @@ class Store {
   // Business validation rules
   static validateName(name) {
     if (!name || name.trim().length < 1) {
-      throw new Error('Store name is required');
+      throw new Error("Store name is required");
     }
     if (name.trim().length > 100) {
-      throw new Error('Store name must be less than 100 characters');
+      throw new Error("Store name must be less than 100 characters");
     }
     return true;
   }
 
   static validateAreaOfWork(areaOfWork) {
     if (!areaOfWork || areaOfWork.trim().length < 1) {
-      throw new Error('Area of work is required');
+      throw new Error("Area of work is required");
     }
     if (areaOfWork.trim().length > 50) {
-      throw new Error('Area of work must be less than 50 characters');
+      throw new Error("Area of work must be less than 50 characters");
     }
     return true;
   }
 
   static validateTeamSize(teamSize) {
     if (teamSize === undefined || teamSize === null) {
-      throw new Error('Team size is required');
+      throw new Error("Team size is required");
     }
     if (!Number.isInteger(teamSize) || teamSize < 1) {
-      throw new Error('Team size must be a positive integer');
+      throw new Error("Team size must be a positive integer");
     }
     if (teamSize > 1000) {
-      throw new Error('Team size must be less than 1000');
+      throw new Error("Team size must be less than 1000");
     }
     return true;
   }
 
   static validateDate(date) {
     if (!date || date.trim().length < 1) {
-      throw new Error('Date is required');
+      throw new Error("Date is required");
     }
     // Validate DD-MM-YYYY format
     const dateRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-(19|20)\d{2}$/;
     if (!dateRegex.test(date)) {
-      throw new Error('Date must be in DD-MM-YYYY format');
+      throw new Error("Date must be in DD-MM-YYYY format");
     }
     return true;
   }
 
   static validateSignature(signature) {
     if (!signature || signature.trim().length < 1) {
-      throw new Error('Signature is required');
+      throw new Error("Signature is required");
     }
     if (signature.trim().length > 200) {
-      throw new Error('Signature must be less than 200 characters');
+      throw new Error("Signature must be less than 200 characters");
     }
     return true;
   }
 
   // Business logic for store creation
   static async createStore(storeData) {
-    const { name, areaOfWork, teamSize, date, signature, userId } = storeData;
+    const { name, areaOfWork, teamSize, date, signature, userId, companyId } =
+      storeData;
 
-    // Validate using business rules
     this.validateName(name);
     this.validateAreaOfWork(areaOfWork);
     this.validateTeamSize(teamSize);
     this.validateDate(date);
     this.validateSignature(signature);
 
-    // Check if user exists
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
 
-    if (!user) {
-      throw new Error('User not found');
-    }
+    if (!user) throw new Error("User not found");
+    if (!user.isActive) throw new Error("User account is deactivated");
 
-    if (!user.isActive) {
-      throw new Error('User account is deactivated');
-    }
-
-    // Create store in database
     const store = await prisma.store.create({
       data: {
         name: name.trim(),
@@ -92,7 +85,14 @@ class Store {
         teamSize: parseInt(teamSize),
         date: date.trim(),
         signature: signature.trim(),
-        userId,
+
+        company: {
+          connect: { id: companyId },
+        },
+
+        manager: {
+          connect: { id: userId },
+        },
       },
       select: {
         id: true,
@@ -101,7 +101,8 @@ class Store {
         teamSize: true,
         date: true,
         signature: true,
-        userId: true,
+        companyId: true,
+        managerId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -111,24 +112,23 @@ class Store {
   }
 
   // Business logic for getting stores by user with pagination
-  static async getStoresByUser(userId, options = {}) {
+  static async getStoresByUser(userId, companyId, options = {}) {
     const { page = 1, limit = 20 } = options;
     const skip = (page - 1) * limit;
 
-    // Check if user exists
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new Error("User not found");
     }
 
-    // Get stores with pagination
     const [stores, totalCount] = await Promise.all([
       prisma.store.findMany({
         where: {
-          userId,
+          managerId: userId,
+          companyId: companyId,
         },
         select: {
           id: true,
@@ -137,19 +137,20 @@ class Store {
           teamSize: true,
           date: true,
           signature: true,
-          userId: true,
+          managerId: true,
+          companyId: true,
           createdAt: true,
           updatedAt: true,
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
+
       prisma.store.count({
         where: {
-          userId,
+          managerId: userId,
+          companyId: companyId,
         },
       }),
     ]);
@@ -170,21 +171,20 @@ class Store {
   }
 
   // Business logic for getting a single store
-  static async getStoreById(storeId, userId) {
-    // Check if user exists
+  static async getStoreById(storeId, userId, companyId) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new Error("User not found");
     }
 
-    // Get the specific store
     const store = await prisma.store.findFirst({
       where: {
         id: storeId,
-        userId,
+        managerId: userId,
+        companyId: companyId,
       },
       select: {
         id: true,
@@ -193,22 +193,22 @@ class Store {
         teamSize: true,
         date: true,
         signature: true,
-        userId: true,
+        managerId: true,
+        companyId: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
     if (!store) {
-      throw new Error('Store not found');
+      throw new Error("Store not found");
     }
 
     return store;
   }
 
   // Business logic for updating a store
-  static async updateStore(storeId, updateData, userId) {
-    // Validate update data if provided
+  static async updateStore(storeId, updateData, userId, companyId) {
     if (updateData.name !== undefined) {
       this.validateName(updateData.name);
       updateData.name = updateData.name.trim();
@@ -230,32 +230,28 @@ class Store {
       updateData.signature = updateData.signature.trim();
     }
 
-    // Check if user exists
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new Error("User not found");
     }
 
-    // Check if store exists
     const existingStore = await prisma.store.findFirst({
       where: {
         id: storeId,
-        userId,
+        managerId: userId,
+        companyId: companyId,
       },
     });
 
     if (!existingStore) {
-      throw new Error('Store not found');
+      throw new Error("Store not found");
     }
 
-    // Update store
     const store = await prisma.store.update({
-      where: {
-        id: storeId,
-      },
+      where: { id: storeId },
       data: updateData,
       select: {
         id: true,
@@ -264,7 +260,8 @@ class Store {
         teamSize: true,
         date: true,
         signature: true,
-        userId: true,
+        managerId: true,
+        companyId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -274,29 +271,27 @@ class Store {
   }
 
   // Business logic for deleting a store
-  static async deleteStore(storeId, userId) {
-    // Check if user exists
+  static async deleteStore(storeId, userId, companyId) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new Error("User not found");
     }
 
-    // Check if store exists
     const existingStore = await prisma.store.findFirst({
       where: {
         id: storeId,
-        userId,
+        managerId: userId,
+        companyId: companyId,
       },
     });
 
     if (!existingStore) {
-      throw new Error('Store not found');
+      throw new Error("Store not found");
     }
 
-    // Delete store
     await prisma.store.delete({
       where: {
         id: storeId,
@@ -305,7 +300,8 @@ class Store {
 
     return {
       storeId,
-      userId,
+      managerId: userId,
+      companyId,
     };
   }
 }

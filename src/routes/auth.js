@@ -8,17 +8,13 @@ const router = express.Router();
 
 // Check Email
 const checkEmailValidation = [
-  body("email")
-    .isEmail()
-    .withMessage("Valid email is required"),
+  body("email").isEmail().withMessage("Valid email is required"),
 ];
 
 // Create Basic Account
 const createAccountBasicValidation = [
   body("name").notEmpty().withMessage("Name is required"),
-  body("email")
-    .isEmail()
-    .withMessage("Valid email is required"),
+  body("email").isEmail().withMessage("Valid email is required"),
   body("password")
     .isLength({ min: 6 })
     .withMessage("Password must be at least 6 characters"),
@@ -31,9 +27,10 @@ const createAccountBasicValidation = [
 //  Complete Company Setup
 const completeSetupValidation = [
   body("userId").notEmpty().withMessage("userId is required"),
-  body("phone").isLength({ min: 10, max: 15 })
-  .matches(/^[0-9]+$/)
-  .withMessage("Phone must contain only numbers"),
+  body("phone")
+    .isLength({ min: 10, max: 15 })
+    .matches(/^[0-9]+$/)
+    .withMessage("Phone must contain only numbers"),
   body("companyName").notEmpty().withMessage("Company name is required"),
   body("nickname").optional(),
   body("country").optional(),
@@ -70,7 +67,6 @@ const updatePasswordValidation = [
     .isLength({ min: 6 })
     .withMessage("Password must be at least 6 characters long"),
 ];
-
 
 // OTP ROUTES
 router.post(

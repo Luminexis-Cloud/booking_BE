@@ -1,13 +1,13 @@
-const storeService = require('../services/storeService');
-const { sendSuccess, sendError } = require('../utils/response');
+const storeService = require("../services/storeService");
+const { sendSuccess, sendError } = require("../utils/response");
 
 class StoreController {
-
-  // 1️⃣ CREATE STORE
+  // CREATE STORE
   async createStore(req, res, next) {
     try {
       const { userId } = req.params;
-      const { name, areaOfWork, teamSize, date, signature, companyId } = req.body;
+      const { name, areaOfWork, teamSize, date, signature, companyId } =
+        req.body;
 
       if (!companyId) {
         return sendError(res, "companyId is required", 400);
@@ -20,36 +20,40 @@ class StoreController {
         date,
         signature,
         userId,
-        companyId,   // ✅ Store belongs to a company now
+        companyId, // ✅ Store belongs to a company now
       };
 
       const store = await storeService.createStore(storeData);
 
       return sendSuccess(
-          res,
-          "Store created successfully",
-          {
-            storeId: store.id,
-            userId: store.userId,
-            companyId: store.companyId,
-            name: store.name,
-            areaOfWork: store.areaOfWork,
-            teamSize: store.teamSize,
-            date: store.date,
-            signature: store.signature,
-          },
-          201
+        res,
+        "Store created successfully",
+        {
+          storeId: store.id,
+          userId: store.userId,
+          companyId: store.companyId,
+          name: store.name,
+          areaOfWork: store.areaOfWork,
+          teamSize: store.teamSize,
+          date: store.date,
+          signature: store.signature,
+        },
+        201
       );
     } catch (error) {
       next(error);
     }
   }
 
-  // 2️⃣ GET ALL STORES BY USER (company-scoped)
+  //  GET ALL STORES BY USER (company-scoped)
   async getStoresByUser(req, res, next) {
     try {
       const { userId } = req.params;
-      const { page = 1, limit = 20, companyId } = req.query;
+      const { companyId } = req.params;
+
+      console.log(">>>>>>>><<<<<", companyId, ">>>>>>>><<<<<");
+
+      const { page = 1, limit = 20 } = req.query;
 
       if (!companyId) {
         return sendError(res, "companyId is required", 400);
@@ -60,7 +64,11 @@ class StoreController {
         limit: Math.min(parseInt(limit), 100),
       };
 
-      const result = await storeService.getStoresByUser(userId, companyId, options);
+      const result = await storeService.getStoresByUser(
+        userId,
+        companyId,
+        options
+      );
 
       const formattedStores = result.stores.map((store) => ({
         storeId: store.id,
@@ -86,11 +94,10 @@ class StoreController {
     }
   }
 
-  // 3️⃣ GET SINGLE STORE
+  // GET SINGLE STORE
   async getStoreById(req, res, next) {
     try {
-      const { userId, storeId } = req.params;
-      const { companyId } = req.query;
+      const { userId, companyId, storeId } = req.params;
 
       if (!companyId) {
         return sendError(res, "companyId is required", 400);
@@ -102,7 +109,7 @@ class StoreController {
         store: {
           storeId: store.id,
           companyId: store.companyId,
-          userId,
+          managerId: store.managerId, // 🔥 correct field name
           name: store.name,
           areaOfWork: store.areaOfWork,
           teamSize: store.teamSize,
@@ -115,42 +122,42 @@ class StoreController {
     }
   }
 
-  // 4️⃣ UPDATE STORE
-  async updateStore(req, res, next) {
-    try {
-      const { userId, storeId } = req.params;
-      const { companyId } = req.body;
+  // UPDATE STORE
+ async updateStore(req, res, next) {
+  try {
+    const { userId, companyId, storeId } = req.params;
+    const updateData = req.body;
 
-      if (!companyId) {
-        return sendError(res, "companyId is required", 400);
-      }
+    const store = await storeService.updateStore(
+      storeId,
+      updateData,
+      userId,
+      companyId
+    );
 
-      const updateData = req.body;
+    return sendSuccess(res, "Store updated successfully", {
+      store: {
+        storeId: store.id,
+        companyId: store.companyId,
+        managerId: store.managerId,
+        name: store.name,
+        areaOfWork: store.areaOfWork,
+        teamSize: store.teamSize,
+        date: store.date,
+        signature: store.signature,
+      },
+    });
 
-      const store = await storeService.updateStore(storeId, updateData, userId, companyId);
-
-      return sendSuccess(res, "Store updated successfully", {
-        store: {
-          storeId: store.id,
-          companyId: store.companyId,
-          userId,
-          name: store.name,
-          areaOfWork: store.areaOfWork,
-          teamSize: store.teamSize,
-          date: store.date,
-          signature: store.signature,
-        },
-      });
-    } catch (error) {
-      next(error);
-    }
+  } catch (error) {
+    next(error);
   }
+}
 
-  // 5️⃣ DELETE STORE
+
+  // DELETE STORE
   async deleteStore(req, res, next) {
     try {
-      const { userId, storeId } = req.params;
-      const { companyId } = req.body;
+      const { userId, companyId, storeId } = req.params;
 
       if (!companyId) {
         return sendError(res, "companyId is required", 400);
@@ -159,14 +166,14 @@ class StoreController {
       const result = await storeService.deleteStore(storeId, userId, companyId);
 
       return sendSuccess(
-          res,
-          "Store deleted successfully",
-          {
-            storeId: result.storeId,
-            userId: result.userId,
-            companyId: result.companyId,
-          },
-          204
+        res,
+        "Store deleted successfully",
+        {
+          storeId: result.storeId,
+          userId: result.userId,
+          companyId: result.companyId,
+        },
+        204
       );
     } catch (error) {
       next(error);
