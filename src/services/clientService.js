@@ -1,9 +1,9 @@
-const Client = require('../models/Client');
+const Client = require("../models/Client");
 
 class ClientService {
-  async createClient(userId, clientData) {
-    return await Client.createClient(userId, clientData);
-  }
+  async createClient(storeId, userId, clientData) {
+  return await Client.createClient(storeId, userId, clientData);
+}
 
   async getClientsByUserId(userId, page = 1, limit = 20) {
     return await Client.getClientsByUserId(userId, page, limit);
@@ -35,7 +35,12 @@ class ClientService {
   }
 
   async updateClientUnderStore(clientId, storeId, userId, updateData) {
-    return await Client.updateClientUnderStore(clientId, storeId, userId, updateData);
+    return await Client.updateClientUnderStore(
+      clientId,
+      storeId,
+      userId,
+      updateData
+    );
   }
 
   async deleteClientUnderStore(clientId, storeId, userId) {
