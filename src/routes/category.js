@@ -102,28 +102,28 @@ router.post('/users/:userId/stores/:storeId/category',
   categoryController.createCategory
 );
 
-router.get('/users/:userId/stores/:storeId/category',
+router.get('/users/:userId/stores/:storeId/categories',
   authenticateToken,
   getCategoriesValidation,
   handleValidationErrors,
   categoryController.getCategoriesByStore
 );
 
-router.get('/users/:userId/stores/:storeId/category/:categoryId',
+router.get('/users/:userId/stores/:storeId/categories/:categoryId',
   authenticateToken,
   getCategoryValidation,
   handleValidationErrors,
   categoryController.getCategoryById
 );
 
-router.put('/users/:userId/stores/:storeId/category/:categoryId',
+router.put('/users/:userId/stores/:storeId/categories/:categoryId',
   authenticateToken,
   updateCategoryValidation,
   handleValidationErrors,
   categoryController.updateCategory
 );
 
-router.delete('/users/:userId/stores/:storeId/category/:categoryId',
+router.delete('/users/:userId/stores/:storeId/categories/:categoryId',
   authenticateToken,
   deleteCategoryValidation,
   handleValidationErrors,
