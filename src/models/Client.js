@@ -140,117 +140,6 @@ class Client {
     return client;
   }
 
-  // UPDATE CLIENT UNDER STORE
-  static async updateClientUnderStore(clientId, storeId, userId, updateData) {
-    // Validate store ownership
-    await this.validateStoreOwnership(storeId, userId);
-
-    // FIELD VALIDATIONS
-    if (updateData.name) this.validateName(updateData.name);
-    if (updateData.phone) this.validatePhone(updateData.phone);
-    if (updateData.email) this.validateEmail(updateData.email);
-
-    if (
-      updateData.birthday !== "" &&
-      updateData.birthday !== null &&
-      updateData.birthday !== undefined
-    ) {
-      this.validateBirthday(updateData.birthday);
-    }
-
-    // FIND EXISTING CLIENT
-    const existingClient = await prisma.client.findUnique({
-      where: { clientId_storeId: { clientId, storeId } },
-    });
-
-    if (!existingClient) throw new Error("Client not found");
-
-    // DUPLICATE EMAIL CHECK
-    if (updateData.email && updateData.email !== existingClient.email) {
-      const existingEmail = await prisma.client.findFirst({
-        where: {
-          email: updateData.email,
-          storeId,
-          AND: [{ clientId: { not: clientId } }], // exclude current client
-        },
-      });
-      if (existingEmail)
-        throw new Error("Client with this email already exists for this store");
-    }
-
-    // DUPLICATE PHONE CHECK
-    if (updateData.phone && updateData.phone !== existingClient.phone) {
-      const existingPhone = await prisma.client.findFirst({
-        where: {
-          phone: updateData.phone,
-          storeId,
-          AND: [{ clientId: { not: clientId } }], // exclude current client
-        },
-      });
-      if (existingPhone)
-        throw new Error(
-          "Client with this phone number already exists for this store"
-        );
-    }
-
-    // PREPARE UPDATE PAYLOAD
-    const updatePayload = {};
-
-    if (updateData.name) updatePayload.name = updateData.name.trim();
-    if (updateData.phone) updatePayload.phone = updateData.phone.trim();
-    if (updateData.email !== undefined)
-      updatePayload.email = updateData.email?.trim() || null;
-    if (updateData.notes !== undefined)
-      updatePayload.notes = updateData.notes?.trim() || null;
-
-    updatePayload.birthday = updateData.birthday
-      ? new Date(updateData.birthday)
-      : null;
-
-    // INFORMATION MERGE
-    if (updateData.information?.length > 0) {
-      const newEntry = updateData.information[0];
-
-      const isEmpty =
-        (!newEntry.note || newEntry.note.trim() === "") &&
-        (!newEntry.image || newEntry.image.length === 0);
-
-      if (!isEmpty) {
-        updatePayload.information = [
-          ...(existingClient.information || []),
-          newEntry,
-        ];
-      }
-    }
-
-    if (updateData.isActive !== undefined) {
-      updatePayload.isActive = updateData.isActive;
-    }
-
-    // UPDATE CLIENT
-    const client = await prisma.client.update({
-      where: { clientId_storeId: { clientId, storeId } },
-      data: updatePayload,
-      select: {
-        id: true,
-        clientId: true,
-        name: true,
-        phone: true,
-        email: true,
-        notes: true,
-        birthday: true,
-        information: true,
-        isActive: true,
-        userId: true,
-        storeId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return client;
-  }
-
   // Business logic for getting all clients for a user
   static async getClientsByUserId(userId, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
@@ -266,6 +155,7 @@ class Client {
           email: true,
           notes: true,
           birthday: true,
+          information: true,
           isActive: true,
           userId: true,
           createdAt: true,
@@ -304,6 +194,7 @@ class Client {
         email: true,
         notes: true,
         birthday: true,
+        information: true,
         isActive: true,
         userId: true,
         createdAt: true,
@@ -314,117 +205,6 @@ class Client {
     if (!client) {
       throw new Error("Client not found");
     }
-
-    return client;
-  }
-
-  // Business logic for updating client
-  static async updateClientUnderStore(clientId, storeId, userId, updateData) {
-    // Validate store ownership
-    await this.validateStoreOwnership(storeId, userId);
-
-    // FIELD VALIDATIONS
-    if (updateData.name) this.validateName(updateData.name);
-    if (updateData.phone) this.validatePhone(updateData.phone);
-    if (updateData.email) this.validateEmail(updateData.email);
-
-    if (
-      updateData.birthday !== "" &&
-      updateData.birthday !== null &&
-      updateData.birthday !== undefined
-    ) {
-      this.validateBirthday(updateData.birthday);
-    }
-
-    // FIND EXISTING CLIENT
-    const existingClient = await prisma.client.findUnique({
-      where: { clientId_storeId: { clientId, storeId } },
-    });
-
-    if (!existingClient) throw new Error("Client not found");
-
-    // DUPLICATE EMAIL CHECK
-    if (updateData.email && updateData.email !== existingClient.email) {
-      const existingEmail = await prisma.client.findFirst({
-        where: {
-          email: updateData.email,
-          storeId,
-          AND: [{ clientId: { not: clientId } }], // exclude current client
-        },
-      });
-      if (existingEmail)
-        throw new Error("Client with this email already exists for this store");
-    }
-
-    // DUPLICATE PHONE CHECK
-    if (updateData.phone && updateData.phone !== existingClient.phone) {
-      const existingPhone = await prisma.client.findFirst({
-        where: {
-          phone: updateData.phone,
-          storeId,
-          AND: [{ clientId: { not: clientId } }], // exclude current client
-        },
-      });
-      if (existingPhone)
-        throw new Error(
-          "Client with this phone number already exists for this store"
-        );
-    }
-
-    // PREPARE UPDATE PAYLOAD
-    const updatePayload = {};
-
-    if (updateData.name) updatePayload.name = updateData.name.trim();
-    if (updateData.phone) updatePayload.phone = updateData.phone.trim();
-    if (updateData.email !== undefined)
-      updatePayload.email = updateData.email?.trim() || null;
-    if (updateData.notes !== undefined)
-      updatePayload.notes = updateData.notes?.trim() || null;
-
-    updatePayload.birthday = updateData.birthday
-      ? new Date(updateData.birthday)
-      : null;
-
-    // INFORMATION MERGE
-    if (updateData.information?.length > 0) {
-      const newEntry = updateData.information[0];
-
-      const isEmpty =
-        (!newEntry.note || newEntry.note.trim() === "") &&
-        (!newEntry.image || newEntry.image.length === 0);
-
-      if (!isEmpty) {
-        updatePayload.information = [
-          ...(existingClient.information || []),
-          newEntry,
-        ];
-      }
-    }
-
-    if (updateData.isActive !== undefined) {
-      updatePayload.isActive = updateData.isActive;
-    }
-
-    // UPDATE CLIENT
-    const client = await prisma.client.update({
-      where: { clientId_storeId: { clientId, storeId } },
-      data: updatePayload,
-      select: {
-        id: true,
-        clientId: true,
-        name: true,
-        phone: true,
-        email: true,
-        notes: true,
-        birthday: true,
-        information: true,
-        isActive: true,
-        userId: true,
-        storeId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
 
     return client;
   }
@@ -474,8 +254,8 @@ class Client {
           email: true,
           notes: true,
           birthday: true,
-          information: true,
           isActive: true,
+          information: true,
           userId: true,
           storeId: true,
           createdAt: true,
@@ -534,104 +314,116 @@ class Client {
   }
 
   // Business logic for updating client under store
+  // Business logic for updating client
   static async updateClientUnderStore(clientId, storeId, userId, updateData) {
-    // Validate store ownership
+    // 1. Validate store ownership
     await this.validateStoreOwnership(storeId, userId);
 
-    // Validate update data
-    if (updateData.name) {
-      this.validateName(updateData.name);
-    }
-    if (updateData.phone) {
-      this.validatePhone(updateData.phone);
-    }
-    if (updateData.email) {
-      this.validateEmail(updateData.email);
-    }
-    if (updateData.birthday) {
+    // 2. Field validations
+    if (updateData.name) this.validateName(updateData.name);
+    if (updateData.phone) this.validatePhone(updateData.phone);
+    if (updateData.email) this.validateEmail(updateData.email);
+
+    if (
+      updateData.birthday !== "" &&
+      updateData.birthday !== null &&
+      updateData.birthday !== undefined
+    ) {
       this.validateBirthday(updateData.birthday);
     }
 
-    // Check if client exists
+    // 3. Find the existing client
     const existingClient = await prisma.client.findFirst({
-      where: {
-        clientId_storeId: {
-          clientId,
-          storeId,
-        },
-      },
+      where: { clientId, storeId },
     });
 
-    if (!existingClient) {
-      throw new Error("Client not found");
-    }
+    if (!existingClient) throw new Error("Client not found");
 
-    // Check for duplicate email if updating email
+    // 4. Duplicate email check
     if (updateData.email && updateData.email !== existingClient.email) {
-      const existingClientByEmail = await prisma.client.findFirst({
+      const existingEmail = await prisma.client.findFirst({
         where: {
           email: updateData.email,
           storeId,
-          clientId: { not: clientId },
+          NOT: { clientId },
         },
       });
-
-      if (existingClientByEmail) {
+      if (existingEmail) {
         throw new Error("Client with this email already exists for this store");
       }
     }
 
-    // Check for duplicate phone if updating phone
+    // 5. Duplicate phone check
     if (updateData.phone && updateData.phone !== existingClient.phone) {
-      const existingClientByPhone = await prisma.client.findFirst({
+      const existingPhone = await prisma.client.findFirst({
         where: {
           phone: updateData.phone,
           storeId,
-          clientId: { not: clientId },
+          NOT: { clientId },
         },
       });
-
-      if (existingClientByPhone) {
+      if (existingPhone) {
         throw new Error(
           "Client with this phone number already exists for this store"
         );
       }
     }
 
-    // Prepare update data
+    // 6. Prepare updatePayload
     const updatePayload = {};
+
     if (updateData.name) updatePayload.name = updateData.name.trim();
-    if (updateData.phone !== undefined)
-      updatePayload.phone = updateData.phone.trim();
+    if (updateData.phone) updatePayload.phone = updateData.phone.trim();
     if (updateData.email !== undefined)
       updatePayload.email = updateData.email?.trim() || null;
     if (updateData.notes !== undefined)
       updatePayload.notes = updateData.notes?.trim() || null;
-    if (updateData.birthday !== undefined)
-      updatePayload.birthday = updateData.birthday
-        ? new Date(updateData.birthday)
-        : null;
-    if (updateData.information && updateData.information.length > 0) {
-      const newEntry = updateData.information[0];
 
-      const isEmpty =
-        (!newEntry.note || newEntry.note.trim() === "") &&
-        (!newEntry.image || newEntry.image.length === 0);
+    // Handle birthday
+    updatePayload.birthday =
+      updateData.birthday === undefined || updateData.birthday === ""
+        ? existingClient.birthday
+        : new Date(updateData.birthday);
 
-      if (!isEmpty) {
-        updatePayload.information = [
-          ...(existingClient.information || []),
-          newEntry,
-        ];
-      }
+    // 7. INFORMATION MERGE (correct behavior)
+    if (Array.isArray(updateData.information)) {
+      const incomingList = updateData.information;
+      const existingList = existingClient.information || [];
+
+      const updatedList = incomingList.map((newItem) => {
+        const index = existingList.findIndex(
+          (oldItem) => oldItem.id === newItem.id
+        );
+
+        // If item exists → replace
+        if (index !== -1) {
+          return {
+            ...existingList[index],
+            ...newItem,
+          };
+        }
+
+        // If new item → append
+        return newItem;
+      });
+
+      updatePayload.information = updatedList;
     }
-    if (updateData.isActive !== undefined)
-      updatePayload.isActive = updateData.isActive;
 
-    // Update client
-    const client = await prisma.client.update({
-      where: { clientId },
+    // 8. isActive toggle
+    if (updateData.isActive !== undefined) {
+      updatePayload.isActive = updateData.isActive;
+    }
+
+    // 9. Update the client
+    await prisma.client.updateMany({
+      where: { clientId, storeId },
       data: updatePayload,
+    });
+
+    // 10. Return the updated client
+    return prisma.client.findFirst({
+      where: { clientId, storeId },
       select: {
         id: true,
         clientId: true,
@@ -648,8 +440,6 @@ class Client {
         updatedAt: true,
       },
     });
-
-    return client;
   }
 
   // Business logic for deleting client under store

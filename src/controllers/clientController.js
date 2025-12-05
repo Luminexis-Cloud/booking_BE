@@ -161,27 +161,9 @@ class ClientController {
       );
 
       // Format information - if empty array, return empty object structure
-      let formattedInformation = client.information;
-      if (
-        !formattedInformation ||
-        (Array.isArray(formattedInformation) &&
-          formattedInformation.length === 0)
-      ) {
-        formattedInformation = [
-          {
-            note: "",
-            image: [],
-            date: "",
-          },
-        ];
-      } else if (Array.isArray(formattedInformation)) {
-        // Replace null with empty string in information items
-        formattedInformation = formattedInformation.map((item) => ({
-          note: item.note === null ? "" : item.note,
-          image: item.image || [],
-          date: item.date === null ? "" : item.date,
-        }));
-      }
+      const formattedInformation = Array.isArray(client.information)
+        ? client.information
+        : [];
 
       res.status(201).json({
         message: "Client created successfully",
@@ -208,7 +190,7 @@ class ClientController {
     try {
       const { userId, storeId } = req.params;
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 20;
+      const limit = parseInt(req.query.limit) || 1000;
 
       const result = await clientService.getClientsByStore(
         storeId,
@@ -216,30 +198,11 @@ class ClientController {
         page,
         limit
       );
-
-      // Format information - if empty array, return empty object structure
-      const formatInformation = (info) => {
-        if (!info || (Array.isArray(info) && info.length === 0)) {
-          return [
-            {
-              note: "",
-              image: [],
-              date: "",
-            },
-          ];
-        }
-        // Replace null with empty string in information items
-        return Array.isArray(info)
-          ? info.map((item) => ({
-              note: item.note === null ? "" : item.note,
-              image: item.image || [],
-              date: item.date === null ? "" : item.date,
-            }))
-          : info;
-      };
+      console.log('khvkshnkfvn????????????????????????????????',result.information);
+    
 
       res.status(200).json({
-        message: "All clients fetched successfully",
+        message: "All clients fetched successfully", 
         userId,
         storeId,
         page: result.page,
@@ -254,7 +217,7 @@ class ClientController {
           email: replaceNullWithEmptyString(client.email),
           notes: replaceNullWithEmptyString(client.notes),
           birthday: replaceNullWithEmptyString(client.birthday),
-          information: formatInformation(client.information),
+          information: client.information,
           isActive: client.isActive,
         })),
       });
@@ -275,27 +238,9 @@ class ClientController {
       );
 
       // Format information - if empty array, return empty object structure
-      let formattedInformation = client.information;
-      if (
-        !formattedInformation ||
-        (Array.isArray(formattedInformation) &&
-          formattedInformation.length === 0)
-      ) {
-        formattedInformation = [
-          {
-            note: "",
-            image: [],
-            date: "",
-          },
-        ];
-      } else if (Array.isArray(formattedInformation)) {
-        // Replace null with empty string in information items
-        formattedInformation = formattedInformation.map((item) => ({
-          note: item.note === null ? "" : item.note,
-          image: item.image || [],
-          date: item.date === null ? "" : item.date,
-        }));
-      }
+      const formattedInformation = Array.isArray(client.information)
+        ? client.information
+        : [];
 
       res.status(200).json({
         message: "Client fetched successfully",
@@ -331,27 +276,9 @@ class ClientController {
       );
 
       // Format information - if empty array, return empty object structure
-      let formattedInformation = client.information;
-      if (
-        !formattedInformation ||
-        (Array.isArray(formattedInformation) &&
-          formattedInformation.length === 0)
-      ) {
-        formattedInformation = [
-          {
-            note: "",
-            image: [],
-            date: "",
-          },
-        ];
-      } else if (Array.isArray(formattedInformation)) {
-        // Replace null with empty string in information items
-        formattedInformation = formattedInformation.map((item) => ({
-          note: item.note === null ? "" : item.note,
-          image: item.image || [],
-          date: item.date === null ? "" : item.date,
-        }));
-      }
+      const formattedInformation = Array.isArray(client.information)
+        ? client.information
+        : [];
 
       res.status(200).json({
         message: "Client updated successfully",

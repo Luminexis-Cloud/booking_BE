@@ -5,7 +5,7 @@ class ClientService {
   return await Client.createClient(storeId, userId, clientData);
 }
 
-  async getClientsByUserId(userId, page = 1, limit = 20) {
+  async getClientsByUserId(userId, page = 1, limit = 1000) {
     return await Client.getClientsByUserId(userId, page, limit);
   }
 
