@@ -423,9 +423,11 @@ class Client {
 
     // Check if client exists
     const existingClient = await prisma.client.findFirst({
-      where: { 
-        clientId,
-        storeId 
+      where: {
+        clientId_storeId: {
+          clientId,
+          storeId,
+        },
       },
     });
 

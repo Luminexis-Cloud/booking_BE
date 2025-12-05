@@ -313,14 +313,14 @@ model Appointment {
 //
 
 model Client {
-  id          String   @id @default(cuid())
-  clientId    String   @unique @default(cuid())
+  id          String   @id @default(cuid())     // Primary key
+  clientId    String   @default(cuid())         // Local client ID (no longer globally unique!)
   name        String
   phone       String
   email       String?
   notes       String?
   birthday    DateTime?
-  information Json?
+  information Json?                             // Stores notes/history array
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -328,10 +328,14 @@ model Client {
   userId  String
   storeId String
 
+  // Relations
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   appointments Appointment[]
 
+  @@unique([clientId, storeId])
+
   @@map("clients")
 }
+
