@@ -470,11 +470,19 @@ class Client {
     if (updateData.email !== undefined) updatePayload.email = updateData.email?.trim() || null;
     if (updateData.notes !== undefined) updatePayload.notes = updateData.notes?.trim() || null;
     if (updateData.birthday !== undefined) updatePayload.birthday = updateData.birthday ? new Date(updateData.birthday) : null;
-    if (updateData.information) {
-      updatePayload.information = [
-        ...(existingClient.information || []),
-        ...updateData.information,
-      ];
+    if (updateData.information && updateData.information.length > 0) {
+      const newEntry = updateData.information[0];
+
+      const isEmpty =
+        (!newEntry.note || newEntry.note.trim() === "") &&
+        (!newEntry.image || newEntry.image.length === 0);
+
+      if (!isEmpty) {
+        updatePayload.information = [
+          ...(existingClient.information || []),
+          newEntry,
+        ];
+      }
     }
     if (updateData.isActive !== undefined) updatePayload.isActive = updateData.isActive;
 
