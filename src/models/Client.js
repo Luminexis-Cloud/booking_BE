@@ -470,7 +470,12 @@ class Client {
     if (updateData.email !== undefined) updatePayload.email = updateData.email?.trim() || null;
     if (updateData.notes !== undefined) updatePayload.notes = updateData.notes?.trim() || null;
     if (updateData.birthday !== undefined) updatePayload.birthday = updateData.birthday ? new Date(updateData.birthday) : null;
-    if (updateData.information !== undefined) updatePayload.information = updateData.information;
+    if (updateData.information) {
+      updatePayload.information = [
+        ...(existingClient.information || []),
+        ...updateData.information,
+      ];
+    }
     if (updateData.isActive !== undefined) updatePayload.isActive = updateData.isActive;
 
     // Update client

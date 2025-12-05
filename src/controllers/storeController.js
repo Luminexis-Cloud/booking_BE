@@ -50,9 +50,6 @@ class StoreController {
     try {
       const { userId } = req.params;
       const { companyId } = req.params;
-
-      console.log(">>>>>>>><<<<<", companyId, ">>>>>>>><<<<<");
-
       const { page = 1, limit = 20 } = req.query;
 
       if (!companyId) {
