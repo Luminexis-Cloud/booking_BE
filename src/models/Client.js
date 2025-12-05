@@ -117,7 +117,7 @@ class Client {
         email: email?.trim() || null,
         notes: notes?.trim() || null,
         birthday: birthday ? new Date(birthday) : null,
-        information: information || [],
+        information: [],
         isActive,
         userId,
         storeId,
