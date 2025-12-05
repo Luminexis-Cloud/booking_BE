@@ -7,50 +7,50 @@ class Client {
   // Business validation rules
   static validateEmail(email) {
     if (!email) return true; // Optional field
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      throw new Error('Invalid email format');
+      throw new Error("Invalid email format");
     }
     return true;
   }
 
   static validatePhone(phone) {
     if (!phone || phone.trim().length === 0) {
-      throw new Error('Client phone is required');
+      throw new Error("Client phone is required");
     }
-    
+
     // Basic phone number validation (adjust regex as needed)
     const phoneRegex = /^\+?[1-9]\d{1,14}$/;
     if (!phoneRegex.test(phone)) {
-      throw new Error('Invalid phone number format');
+      throw new Error("Invalid phone number format");
     }
     return true;
   }
 
   static validateName(name) {
     if (!name || name.trim().length === 0) {
-      throw new Error('Client name is required');
+      throw new Error("Client name is required");
     }
     if (name.length > 100) {
-      throw new Error('Client name must be less than 100 characters');
+      throw new Error("Client name must be less than 100 characters");
     }
     return true;
   }
 
   static validateBirthday(birthday) {
     if (!birthday) return true; // Optional field
-    
+
     const birthdayDate = new Date(birthday);
     if (isNaN(birthdayDate.getTime())) {
-      throw new Error('Invalid birthday format');
+      throw new Error("Invalid birthday format");
     }
-    
+
     const today = new Date();
     if (birthdayDate > today) {
-      throw new Error('Birthday cannot be in the future');
+      throw new Error("Birthday cannot be in the future");
     }
-    
+
     return true;
   }
 
@@ -64,7 +64,7 @@ class Client {
     });
 
     if (!store) {
-      throw new Error('Store not found or access denied');
+      throw new Error("Store not found or access denied");
     }
 
     return store;
@@ -72,44 +72,33 @@ class Client {
 
   // Business logic for client creation under store
   static async createClient(storeId, userId, clientData) {
-    const { name, phone, email, notes, birthday, information, isActive = true } = clientData;
+    const { name, phone, email, notes, birthday, isActive = true } = clientData;
 
-    // Validate using business rules - name and phone are required
     this.validateName(name);
     this.validatePhone(phone);
     this.validateEmail(email);
-    this.validateBirthday(birthday);
 
-    // Validate store ownership
+    if (birthday !== null && birthday !== undefined && birthday !== "") {
+      this.validateBirthday(birthday);
+    }
+
     await this.validateStoreOwnership(storeId, userId);
 
-    // Check if client exists with same email for this store (business rule)
     if (email) {
       const existingClientByEmail = await prisma.client.findFirst({
-        where: { 
-          email,
-          storeId 
-        },
+        where: { email, storeId },
       });
-
-      if (existingClientByEmail) {
-        throw new Error('Client with this email already exists for this store');
-      }
+      if (existingClientByEmail)
+        throw new Error("Client with this email already exists");
     }
 
-    // Check if client exists with same phone for this store (business rule)
     const existingClientByPhone = await prisma.client.findFirst({
-      where: { 
-        phone,
-        storeId 
-      },
+      where: { phone, storeId },
     });
-
     if (existingClientByPhone) {
-      throw new Error('Client with this phone number already exists for this store');
+      throw new Error("Client with this phone number already exists");
     }
 
-    // Create client in database
     const client = await prisma.client.create({
       data: {
         name: name.trim(),
@@ -117,7 +106,7 @@ class Client {
         email: email?.trim() || null,
         notes: notes?.trim() || null,
         birthday: birthday ? new Date(birthday) : null,
-        information: [],
+        information: [], // ALWAYS EMPTY ON CREATE
         isActive,
         userId,
         storeId,
@@ -162,7 +151,7 @@ class Client {
           createdAt: true,
           updatedAt: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
@@ -183,9 +172,9 @@ class Client {
   // Business logic for getting a single client
   static async getClientById(clientId, userId) {
     const client = await prisma.client.findFirst({
-      where: { 
+      where: {
         clientId,
-        userId 
+        userId,
       },
       select: {
         id: true,
@@ -203,82 +192,89 @@ class Client {
     });
 
     if (!client) {
-      throw new Error('Client not found');
+      throw new Error("Client not found");
     }
 
     return client;
   }
 
   // Business logic for updating client
-  static async updateClient(clientId, userId, updateData) {
-    // Validate update data
-    if (updateData.name) {
-      this.validateName(updateData.name);
-    }
-    if (updateData.email) {
-      this.validateEmail(updateData.email);
-    }
-    if (updateData.phone) {
-      this.validatePhone(updateData.phone);
-    }
-    if (updateData.birthday) {
+  static async updateClientUnderStore(clientId, storeId, userId, updateData) {
+    await this.validateStoreOwnership(storeId, userId);
+
+    if (updateData.name) this.validateName(updateData.name);
+    if (updateData.phone) this.validatePhone(updateData.phone);
+    if (updateData.email) this.validateEmail(updateData.email);
+
+    if (
+      updateData.birthday !== null &&
+      updateData.birthday !== "" &&
+      updateData.birthday !== undefined
+    ) {
       this.validateBirthday(updateData.birthday);
     }
 
-    // Check if client exists
-    const existingClient = await prisma.client.findFirst({
-      where: { 
-        clientId,
-        userId 
+    const existingClient = await prisma.client.findUnique({
+      where: {
+        clientId_storeId: { clientId, storeId },
       },
     });
 
-    if (!existingClient) {
-      throw new Error('Client not found');
-    }
+    if (!existingClient) throw new Error("Client not found");
 
-    // Check for duplicate email if updating email
+    // email duplicate check
     if (updateData.email && updateData.email !== existingClient.email) {
-      const existingClientByEmail = await prisma.client.findFirst({
-        where: { 
+      const existingEmail = await prisma.client.findFirst({
+        where: {
           email: updateData.email,
-          userId,
-          clientId: { not: clientId }
+          storeId,
+          NOT: { clientId_storeId: { clientId, storeId } },
         },
       });
-
-      if (existingClientByEmail) {
-        throw new Error('Client with this email already exists for this user');
-      }
+      if (existingEmail) throw new Error("Email already in use");
     }
 
-    // Check for duplicate phone if updating phone
+    // phone duplicate check
     if (updateData.phone && updateData.phone !== existingClient.phone) {
-      const existingClientByPhone = await prisma.client.findFirst({
-        where: { 
+      const existingPhone = await prisma.client.findFirst({
+        where: {
           phone: updateData.phone,
-          userId,
-          clientId: { not: clientId }
+          storeId,
+          NOT: { clientId_storeId: { clientId, storeId } },
         },
       });
+      if (existingPhone) throw new Error("Phone already in use");
+    }
 
-      if (existingClientByPhone) {
-        throw new Error('Client with this phone number already exists for this user');
+    const updatePayload = {};
+
+    if (updateData.name) updatePayload.name = updateData.name.trim();
+    if (updateData.phone) updatePayload.phone = updateData.phone.trim();
+    if (updateData.email !== undefined)
+      updatePayload.email = updateData.email?.trim() || null;
+    if (updateData.notes !== undefined)
+      updatePayload.notes = updateData.notes?.trim() || null;
+
+    updatePayload.birthday = updateData.birthday
+      ? new Date(updateData.birthday)
+      : null;
+
+    // merge information
+    if (updateData.information?.length > 0) {
+      const newEntry = updateData.information[0];
+      const isEmpty = !newEntry.note && newEntry.image.length === 0;
+      if (!isEmpty) {
+        updatePayload.information = [
+          ...(existingClient.information || []),
+          newEntry,
+        ];
       }
     }
 
-    // Prepare update data
-    const updatePayload = {};
-    if (updateData.name) updatePayload.name = updateData.name.trim();
-    if (updateData.phone !== undefined) updatePayload.phone = updateData.phone?.trim() || null;
-    if (updateData.email !== undefined) updatePayload.email = updateData.email?.trim() || null;
-    if (updateData.notes !== undefined) updatePayload.notes = updateData.notes?.trim() || null;
-    if (updateData.birthday !== undefined) updatePayload.birthday = updateData.birthday ? new Date(updateData.birthday) : null;
-    if (updateData.isActive !== undefined) updatePayload.isActive = updateData.isActive;
-
-    // Update client
     const client = await prisma.client.update({
-      where: { clientId },
+      where: {
+        clientId_storeId: { clientId, storeId },
+      },
       data: updatePayload,
       select: {
         id: true,
@@ -288,8 +284,10 @@ class Client {
         email: true,
         notes: true,
         birthday: true,
+        information: true,
         isActive: true,
         userId: true,
+        storeId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -302,14 +300,14 @@ class Client {
   static async deleteClient(clientId, userId) {
     // Check if client exists
     const existingClient = await prisma.client.findFirst({
-      where: { 
+      where: {
         clientId,
-        userId 
+        userId,
       },
     });
 
     if (!existingClient) {
-      throw new Error('Client not found');
+      throw new Error("Client not found");
     }
 
     // Delete client
@@ -350,7 +348,7 @@ class Client {
           createdAt: true,
           updatedAt: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
@@ -374,9 +372,9 @@ class Client {
     await this.validateStoreOwnership(storeId, userId);
 
     const client = await prisma.client.findFirst({
-      where: { 
+      where: {
         clientId,
-        storeId 
+        storeId,
       },
       select: {
         id: true,
@@ -396,7 +394,7 @@ class Client {
     });
 
     if (!client) {
-      throw new Error('Client not found');
+      throw new Error("Client not found");
     }
 
     return client;
@@ -432,46 +430,54 @@ class Client {
     });
 
     if (!existingClient) {
-      throw new Error('Client not found');
+      throw new Error("Client not found");
     }
 
     // Check for duplicate email if updating email
     if (updateData.email && updateData.email !== existingClient.email) {
       const existingClientByEmail = await prisma.client.findFirst({
-        where: { 
+        where: {
           email: updateData.email,
           storeId,
-          clientId: { not: clientId }
+          clientId: { not: clientId },
         },
       });
 
       if (existingClientByEmail) {
-        throw new Error('Client with this email already exists for this store');
+        throw new Error("Client with this email already exists for this store");
       }
     }
 
     // Check for duplicate phone if updating phone
     if (updateData.phone && updateData.phone !== existingClient.phone) {
       const existingClientByPhone = await prisma.client.findFirst({
-        where: { 
+        where: {
           phone: updateData.phone,
           storeId,
-          clientId: { not: clientId }
+          clientId: { not: clientId },
         },
       });
 
       if (existingClientByPhone) {
-        throw new Error('Client with this phone number already exists for this store');
+        throw new Error(
+          "Client with this phone number already exists for this store"
+        );
       }
     }
 
     // Prepare update data
     const updatePayload = {};
     if (updateData.name) updatePayload.name = updateData.name.trim();
-    if (updateData.phone !== undefined) updatePayload.phone = updateData.phone.trim();
-    if (updateData.email !== undefined) updatePayload.email = updateData.email?.trim() || null;
-    if (updateData.notes !== undefined) updatePayload.notes = updateData.notes?.trim() || null;
-    if (updateData.birthday !== undefined) updatePayload.birthday = updateData.birthday ? new Date(updateData.birthday) : null;
+    if (updateData.phone !== undefined)
+      updatePayload.phone = updateData.phone.trim();
+    if (updateData.email !== undefined)
+      updatePayload.email = updateData.email?.trim() || null;
+    if (updateData.notes !== undefined)
+      updatePayload.notes = updateData.notes?.trim() || null;
+    if (updateData.birthday !== undefined)
+      updatePayload.birthday = updateData.birthday
+        ? new Date(updateData.birthday)
+        : null;
     if (updateData.information && updateData.information.length > 0) {
       const newEntry = updateData.information[0];
 
@@ -486,7 +492,8 @@ class Client {
         ];
       }
     }
-    if (updateData.isActive !== undefined) updatePayload.isActive = updateData.isActive;
+    if (updateData.isActive !== undefined)
+      updatePayload.isActive = updateData.isActive;
 
     // Update client
     const client = await prisma.client.update({
@@ -519,14 +526,14 @@ class Client {
 
     // Check if client exists
     const existingClient = await prisma.client.findFirst({
-      where: { 
+      where: {
         clientId,
-        storeId 
+        storeId,
       },
     });
 
     if (!existingClient) {
-      throw new Error('Client not found');
+      throw new Error("Client not found");
     }
 
     // Delete client
