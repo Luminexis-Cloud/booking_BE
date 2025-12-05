@@ -29,7 +29,7 @@ class Category {
     const store = await prisma.store.findFirst({
       where: {
         id: storeId,
-        userId: userId,
+        managerId: userId,
       },
     });
 
