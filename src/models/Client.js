@@ -385,26 +385,28 @@ class Client {
         ? existingClient.birthday
         : new Date(updateData.birthday);
 
-    // 7. INFORMATION MERGE (correct behavior)
+    const { v4: uuidv4 } = require("uuid");
+
     if (Array.isArray(updateData.information)) {
       const incomingList = updateData.information;
       const existingList = existingClient.information || [];
 
       const updatedList = incomingList.map((newItem) => {
-        const index = existingList.findIndex(
-          (oldItem) => oldItem.id === newItem.id
-        );
+        const id = newItem.id ? newItem.id : uuidv4();
 
-        // If item exists → replace
+        const index = existingList.findIndex((oldItem) => oldItem.id === id);
+
         if (index !== -1) {
           return {
             ...existingList[index],
             ...newItem,
+            id,
           };
         }
-
-        // If new item → append
-        return newItem;
+        return {
+          ...newItem,
+          id,
+        };
       });
 
       updatePayload.information = updatedList;
