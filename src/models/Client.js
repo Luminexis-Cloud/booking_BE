@@ -437,16 +437,23 @@ class Client {
       updatePayload.isActive = updateData.isActive;
     }
 
-    // Update
-    await prisma.client.update({
-      where: {
-        clientId_storeId: {
-          clientId,
-          storeId,
-        },
-      },
-      data: updatePayload,
-    });
+   try {
+     console.log("Attempting update with payload:", updatePayload);
+
+     await prisma.client.update({
+       where: {
+         clientId_storeId: {
+           clientId,
+           storeId,
+         },
+       },
+       data: updatePayload,
+     });
+   } catch (err) {
+     console.error("🔥 REAL PRISMA ERROR:", err);
+     throw err; // IMPORTANT: rethrow so global handler still runs
+   }
+
 
     return prisma.client.findFirst({
       where: { clientId, storeId },
