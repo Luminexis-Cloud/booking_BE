@@ -325,8 +325,8 @@ class Client {
     );
 
     console.log("Check ownership:", storeId, userId);
-await this.validateStoreOwnership(storeId, userId);
-console.log("Ownership OK");
+    await this.validateStoreOwnership(storeId, userId);
+    console.log("Ownership OK");
 
     // 2. Field validations
     if (updateData.name) this.validateName(updateData.name);
@@ -345,6 +345,8 @@ console.log("Ownership OK");
     const existingClient = await prisma.client.findFirst({
       where: { clientId, storeId },
     });
+
+    console.log("Found client:", JSON.stringify(existingClient, null, 2));
 
     if (!existingClient) throw new Error("Client not found");
 
@@ -410,9 +412,7 @@ console.log("Ownership OK");
             ? newItem.id
             : uuidv4(); // backend assigns ID for new item
 
-        const index = existingList.findIndex(
-          (oldItem) => oldItem.id === id
-        );
+        const index = existingList.findIndex((oldItem) => oldItem.id === id);
 
         if (index !== -1) {
           // update existing
