@@ -77,6 +77,22 @@ class Store {
 
     if (!user) throw new Error("User not found");
     if (!user.isActive) throw new Error("User account is deactivated");
+    console.log("📝 Debug Update Fields:", {
+      raw: {
+        name,
+        areaOfWork,
+        teamSize,
+        date,
+        signature,
+      },
+      processed: {
+        name: name?.trim(),
+        areaOfWork: areaOfWork?.trim(),
+        teamSize: parseInt(teamSize),
+        date: date?.trim(),
+        signature: signature?.trim(),
+      },
+    });
 
     const store = await prisma.store.create({
       data: {
@@ -249,6 +265,7 @@ class Store {
     if (!existingStore) {
       throw new Error("Store not found");
     }
+    console.log("📝 existingStore:",existingStore,"📝 Debug Update Fields:", updateData);
 
     const store = await prisma.store.update({
       where: { id: storeId },
