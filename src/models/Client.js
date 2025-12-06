@@ -439,8 +439,13 @@ class Client {
     }
 
     // Update
-    await prisma.client.updateMany({
-      where: { clientId, storeId },
+    await prisma.client.update({
+      where: {
+        clientId_storeId: {
+          clientId,
+          storeId,
+        },
+      },
       data: updatePayload,
     });
 
