@@ -314,7 +314,6 @@ class Client {
   }
 
   // Business logic for updating client under store
-  // Business logic for updating client
   static async updateClientUnderStore(clientId, storeId, userId, updateData) {
     console.log("▶️ START updateClientUnderStore");
     console.log("📥 INPUT", { clientId, storeId, userId, updateData });
@@ -429,9 +428,22 @@ class Client {
     console.log("   RAW info =", existingClient.information);
     console.log("   TYPE =", typeof existingClient.information);
 
-    const existingList = Array.isArray(existingClient.information)
-      ? existingClient.information
-      : [];
+    // ✅ SAFE JSON handling for PostgreSQL JSONB text results
+    let existingList = [];
+
+    try {
+      if (typeof existingClient.information === "string") {
+        console.log("⚠️ information is STRING → parsing JSON...");
+        existingList = JSON.parse(existingClient.information || "[]");
+      } else if (Array.isArray(existingClient.information)) {
+        existingList = existingClient.information;
+      } else {
+        console.log("⚠️ information is NULL or UNKNOWN TYPE");
+      }
+    } catch (err) {
+      console.error("🔥 JSON parse error for information field:", err);
+      existingList = [];
+    }
 
     console.log("   SAFE existingList =", existingList);
 
@@ -440,7 +452,6 @@ class Client {
       console.log("🔧 Merging information:", updateData.information);
 
       const incomingList = updateData.information;
-      const existingList = existingClient.information || [];
 
       const updatedList = incomingList.map((newItem) => {
         const id =
