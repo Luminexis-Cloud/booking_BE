@@ -425,7 +425,15 @@ class Client {
 
     const { v4: uuidv4 } = require("uuid");
 
-    console.log("📄 Existing info list:", existingClient.information);
+    console.log("🔎 Checking information field...");
+    console.log("   RAW info =", existingClient.information);
+    console.log("   TYPE =", typeof existingClient.information);
+
+    const existingList = Array.isArray(existingClient.information)
+      ? existingClient.information
+      : [];
+
+    console.log("   SAFE existingList =", existingList);
 
     // 7. Merge information
     if (Array.isArray(updateData.information)) {
