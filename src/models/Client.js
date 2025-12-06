@@ -415,9 +415,8 @@ class Client {
         const index = existingList.findIndex((oldItem) => oldItem.id === id);
 
         if (index !== -1) {
-          // update existing
           return {
-            ...safeExistingList[index],
+            ...existingList[index],
             ...newItem,
             id,
           };
