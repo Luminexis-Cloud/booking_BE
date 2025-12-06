@@ -393,13 +393,8 @@ class Client {
 
     const { v4: uuidv4 } = require("uuid");
 
-    // ⭐ FIX: Normalize existing data before merging
-    const safeExistingList = (existingClient.information || []).map((item) => ({
-      id: item?.id || uuidv4(),
-      note: item?.note ?? "",
-      image: Array.isArray(item?.image) ? item.image : [],
-      date: item?.date ?? new Date().toISOString(),
-    }));
+    const existingList = existingClient.information || [];
+    console.log("Existing information in DB:", existingClient.information);
 
     // ⭐ Merge new data
     if (Array.isArray(updateData.information)) {
@@ -413,7 +408,7 @@ class Client {
             ? newItem.id
             : uuidv4(); // backend assigns ID for new item
 
-        const index = safeExistingList.findIndex(
+        const index = existingList.findIndex(
           (oldItem) => oldItem.id === id
         );
 
