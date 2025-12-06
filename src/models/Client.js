@@ -316,8 +316,13 @@ class Client {
   // Business logic for updating client under store
   // Business logic for updating client
   static async updateClientUnderStore(clientId, storeId, userId, updateData) {
-    // 1. Validate store ownership
-  console.log("Chart entries from single client:", clientId, storeId, userId, updateData);
+    console.log(
+      "Chart entries from single client:",
+      clientId,
+      storeId,
+      userId,
+      updateData
+    );
 
     await this.validateStoreOwnership(storeId, userId);
 
@@ -381,7 +386,6 @@ class Client {
     if (updateData.notes !== undefined)
       updatePayload.notes = updateData.notes?.trim() || null;
 
-    // Handle birthday
     updatePayload.birthday =
       updateData.birthday === undefined || updateData.birthday === ""
         ? existingClient.birthday
@@ -389,23 +393,40 @@ class Client {
 
     const { v4: uuidv4 } = require("uuid");
 
+    // ⭐ FIX: Normalize existing data before merging
+    const safeExistingList = (existingClient.information || []).map((item) => ({
+      id: item?.id || uuidv4(),
+      note: item?.note ?? "",
+      image: Array.isArray(item?.image) ? item.image : [],
+      date: item?.date ?? new Date().toISOString(),
+    }));
+
+    // ⭐ Merge new data
     if (Array.isArray(updateData.information)) {
       const incomingList = updateData.information;
-      const existingList = existingClient.information || [];
 
       const updatedList = incomingList.map((newItem) => {
-        // 🔥 Ensure id exists (null, undefined, empty → new GUID)
-        const id = newItem.id ? newItem.id : uuidv4();
+        const id =
+          newItem.id &&
+          typeof newItem.id === "string" &&
+          newItem.id.trim() !== ""
+            ? newItem.id
+            : uuidv4(); // backend assigns ID for new item
 
-        const index = existingList.findIndex((oldItem) => oldItem.id === id);
+        const index = safeExistingList.findIndex(
+          (oldItem) => oldItem.id === id
+        );
 
         if (index !== -1) {
+          // update existing
           return {
-            ...existingList[index],
+            ...safeExistingList[index],
             ...newItem,
             id,
           };
         }
+
+        // new item
         return {
           ...newItem,
           id,
@@ -415,18 +436,17 @@ class Client {
       updatePayload.information = updatedList;
     }
 
-    // 8. isActive toggle
+    // isActive toggle
     if (updateData.isActive !== undefined) {
       updatePayload.isActive = updateData.isActive;
     }
 
-    // 9. Update the client
+    // Update
     await prisma.client.updateMany({
       where: { clientId, storeId },
       data: updatePayload,
     });
 
-    // 10. Return the updated client
     return prisma.client.findFirst({
       where: { clientId, storeId },
       select: {
