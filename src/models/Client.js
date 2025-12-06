@@ -317,6 +317,8 @@ class Client {
   // Business logic for updating client
   static async updateClientUnderStore(clientId, storeId, userId, updateData) {
     // 1. Validate store ownership
+  console.log("Chart entries from single client:", clientId, storeId, userId, updateData);
+
     await this.validateStoreOwnership(storeId, userId);
 
     // 2. Field validations
@@ -392,6 +394,7 @@ class Client {
       const existingList = existingClient.information || [];
 
       const updatedList = incomingList.map((newItem) => {
+        // 🔥 Ensure id exists (null, undefined, empty → new GUID)
         const id = newItem.id ? newItem.id : uuidv4();
 
         const index = existingList.findIndex((oldItem) => oldItem.id === id);
