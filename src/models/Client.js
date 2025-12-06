@@ -324,7 +324,9 @@ class Client {
       updateData
     );
 
-    await this.validateStoreOwnership(storeId, userId);
+    console.log("Check ownership:", storeId, userId);
+await this.validateStoreOwnership(storeId, userId);
+console.log("Ownership OK");
 
     // 2. Field validations
     if (updateData.name) this.validateName(updateData.name);
