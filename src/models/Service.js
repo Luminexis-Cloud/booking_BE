@@ -127,7 +127,7 @@ class Service {
       const store = await prisma.store.findFirst({
         where: {
           id: storeId,
-          managerId: userId, // ✔ THIS IS CORRECT
+          managerId: userId,
         },
         select: { id: true, name: true },
       });
@@ -151,7 +151,7 @@ class Service {
           categoryId,
           storeId,
           store: {
-            managerId: userId, // ✔ MUST MATCH store ownership
+            managerId: userId,
           },
         },
         select: { id: true, categoryId: true, name: true, storeId: true },
@@ -346,7 +346,6 @@ class Service {
     userId
   ) {
     try {
-      // Validate update data if provided
       if (updateData.name !== undefined) {
         this.validateName(updateData.name);
         updateData.name = updateData.name.trim();
@@ -376,14 +375,12 @@ class Service {
         updateData.date = updateData.date.trim();
       }
 
-      // Validate category ownership
       const category = await this.validateCategoryOwnership(
         categoryId,
         storeId,
         userId
       );
 
-      // Check if service exists
       const existingService = await prisma.service.findFirst({
         where: {
           serviceId,
@@ -395,7 +392,6 @@ class Service {
         throw new NotFoundError("Service");
       }
 
-      // Update service
       const service = await prisma.service.update({
         where: {
           id: existingService.id,
@@ -438,14 +434,12 @@ class Service {
     userId
   ) {
     try {
-      // Validate category ownership
       const category = await this.validateCategoryOwnership(
         categoryId,
         storeId,
         userId
       );
 
-      // Check if service exists
       const existingService = await prisma.service.findFirst({
         where: {
           serviceId,
@@ -457,7 +451,6 @@ class Service {
         throw new NotFoundError("Service");
       }
 
-      // Delete service
       await prisma.service.delete({
         where: {
           id: existingService.id,
@@ -482,7 +475,6 @@ class Service {
   }
 
   static async getCategoriesWithServices(storeId, userId) {
-    // Validate the store belongs to the user
     const store = await prisma.store.findFirst({
       where: {
         id: storeId,
@@ -494,8 +486,6 @@ class Service {
     if (!store) {
       throw new NotFoundError("Store not found or unauthorized.");
     }
-
-    // Fetch categories + services
     const categories = await prisma.category.findMany({
       where: {
         storeId,
