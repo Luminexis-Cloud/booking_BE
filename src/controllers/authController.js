@@ -317,7 +317,7 @@ class AuthController {
     phoneNumber: v.target.phoneNumber,
     companyId: v.target.companyId,
     storeId: v.target.storeId,
-    store: v.target.store,
+    store:[v.target.store],
   }));
 
   console.log("👁 Visibility Users:", visibilityUsers);
@@ -332,13 +332,18 @@ class AuthController {
   console.log("🔐 Permissions mapped:", permissions.length);
 
   console.log("✅ Login successful for:", user.email);
+  
+  const cleanUser = {
+    ...user,
+    store: user.store ? [user.store] : [], // <-- Fix main user.store
+  };
 
   return res.json({
     success: true,
     message: "Login successful",
     data: {
       user: {
-        ...user,
+        ...cleanUser,
         permissions,
         visibility: visibilityUsers,
       },
