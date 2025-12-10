@@ -1,74 +1,79 @@
 const {PrismaClient} = require("@prisma/client");
 const prisma = new PrismaClient();
 
-/**
- * RoleController
- * Handles:
- *  - Role CRUD
- *  - Role Permission Management
- *  - Role → User Visibility Management
- */
+
 class RoleController {
     // 1️⃣ Create a new role
     async createRole(req, res, next) {
-        try {
-            const {name, description, userLimit, permissionIds, visibleUserIds} = req.body;
-            const companyId = req.user.companyId;
+    try {
+        const { name, description, userLimit, permissionIds, visibleUserIds } = req.body;
+        const companyId =
+            req.params.companyId ||
+            req.query.companyId ||
+            req.user.companyId;
 
-            // Check duplicate
-            const existing = await prisma.role.findFirst({
-                where: {name, companyId}
+        if (!companyId) {
+            return res.status(400).json({
+                success: false,
+                message: "companyId is required."
             });
-            if (existing) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Role already exists for this company"
-                });
-            }
-
-            // Create role
-            const role = await prisma.role.create({
-                data: {
-                    name,
-                    description,
-                    userLimit: userLimit || 10,
-                    companyId
-                }
-            });
-
-            // Permissions
-            if (permissionIds?.length > 0) {
-                await prisma.rolePermission.createMany({
-                    data: permissionIds.map(pid => ({
-                        roleId: role.id,
-                        permissionId: pid
-                    })),
-                    skipDuplicates: true
-                });
-            }
-
-            // Visibility (Role → Users)
-            if (visibleUserIds?.length > 0) {
-                await prisma.roleUserVisibility.createMany({
-                    data: visibleUserIds.map(uid => ({
-                        roleId: role.id,
-                        targetId: uid
-                    })),
-                    skipDuplicates: true
-                });
-            }
-
-            res.status(201).json({
-                success: true,
-                message: "Role created successfully",
-                data: role
-            });
-
-        } catch (error) {
-            console.error("Role Create Error:", error);
-            next(error);
         }
+
+        console.log("Company ID:", companyId);
+
+        // Duplicate check
+        const existing = await prisma.role.findFirst({
+            where: { name, companyId }
+        });
+
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: "Role already exists for this company"
+            });
+        }
+
+        // Create role
+        const role = await prisma.role.create({
+            data: {
+                name,
+                description,
+                userLimit: userLimit || 10,
+                companyId
+            }
+        });
+
+        // Permissions
+        if (permissionIds?.length > 0) {
+            await prisma.rolePermission.createMany({
+                data: permissionIds.map(pid => ({
+                    roleId: role.id,
+                    permissionId: pid
+                }))
+            });
+        }
+
+        // Visibility
+        if (visibleUserIds?.length > 0) {
+            await prisma.roleUserVisibility.createMany({
+                data: visibleUserIds.map(uid => ({
+                    roleId: role.id,
+                    targetId: uid
+                }))
+            });
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: "Role created successfully",
+            data: role
+        });
+
+    } catch (error) {
+        console.error("Role Create Error:", error);
+        next(error);
     }
+}
 
     // 2️⃣ Get all roles
     async getAllRoles(req, res, next) {

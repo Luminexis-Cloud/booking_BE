@@ -5,30 +5,38 @@ const roleController = require("../controllers/roleController");
 const { authenticateToken } = require("../middlewares/auth");
 
 // Create Role
-router.post("/roles", authenticateToken, roleController.createRole);
+router.post("/:companyId", authenticateToken, roleController.createRole);
 
 // Get All Roles
-router.get("/roles", authenticateToken, roleController.getAllRoles);
+router.get("/", authenticateToken, roleController.getAllRoles);
 
-// Assign Permissions
-router.post("/roles/assign-permissions", authenticateToken, roleController.assignPermissions);
+// Get Single Role
+router.get("/:id", authenticateToken, roleController.getRoleById);
 
-// Update Visibility
-router.post("/roles/update-visibility", authenticateToken, roleController.updateRoleVisibility);
+// Update Role
+router.put("/:id", authenticateToken, roleController.updateRole);
 
-// Available Users for Role Visibility
-router.get("/roles/available-users", authenticateToken, roleController.getAvailableUsers);
+// Delete Role
+router.delete("/:id", authenticateToken, roleController.deleteRole);
+
+// =========================
+//      PERMISSIONS
+// =========================
+
+// Assign Permissions to Role
+router.post("/assign-permissions", authenticateToken, roleController.assignPermissions);
 
 // Get All Permissions
 router.get("/permissions", authenticateToken, roleController.getAllPermissions);
 
-// Get Single Role
-router.get("/roles/:id", authenticateToken, roleController.getRoleById);
+// =========================
+//      VISIBILITY
+// =========================
 
-// Update Role
-router.put("/roles/:id", authenticateToken, roleController.updateRole);
+// Update Role Visibility
+router.post("/update-visibility", authenticateToken, roleController.updateRoleVisibility);
 
-// Delete Role
-router.delete("/roles/:id", authenticateToken, roleController.deleteRole);
+// Get Available Users for Visibility
+router.get("/available-users", authenticateToken, roleController.getAvailableUsers);
 
 module.exports = router;

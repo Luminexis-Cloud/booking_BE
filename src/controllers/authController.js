@@ -232,90 +232,131 @@ class AuthController {
   }
 
   async login(req, res, next) {
-    try {
-      const { email, password } = req.body;
+   try {
+  console.log("📥 LOGIN REQUEST BODY:", req.body);
 
-      const user = await prisma.user.findUnique({
-        where: { email },
+  const { email, password } = req.body;
+
+  // Fetch user with relations
+  console.log("🔍 Searching user by email:", email);
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: {
+      role: {
         include: {
-          role: {
-            include: {
-              rolePermissions: { include: { permission: true } },
-            },
-          },
-          company: true,
-          store: true,
+          rolePermissions: { include: { permission: true } },
         },
-      });
+      },
+      company: true,
+      store: true,
+    },
+  });
 
-      if (!user)
-        return res
-          .status(401)
-          .json({ success: false, message: "Invalid credentials" });
+  console.log("🔎 USER FOUND:", user ? user.id : "❌ No user found");
 
-      if (!user.isActive)
-        return res
-          .status(401)
-          .json({ success: false, message: "Account deactivated" });
+  if (!user) {
+    console.log("❌ Invalid credentials - user not found");
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid credentials" });
+  }
 
-      const valid = await bcrypt.compare(password, user.password);
-      if (!valid)
-        return res
-          .status(401)
-          .json({ success: false, message: "Invalid credentials" });
+  if (!user.isActive) {
+    console.log("🚫 User account deactivated:", user.id);
+    return res
+      .status(401)
+      .json({ success: false, message: "Account deactivated" });
+  }
 
-      const { accessToken, refreshToken } = authService.generateTokens(user.id);
+  console.log("🔐 Comparing password...");
+  const valid = await bcrypt.compare(password, user.password);
 
-      await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
-      await prisma.refreshToken.create({
-        data: {
-          token: refreshToken,
-          userId: user.id,
-          expiresAt: new Date(Date.now() + 30 * 86400000),
-        },
-      });
+  console.log("🔐 Password valid?", valid);
 
-      const roleVisibility = await prisma.roleUserVisibility.findMany({
-        where: { roleId: user.roleId },
-        include: {
-          target: { include: { store: true, company: true } },
-        },
-      });
+  if (!valid) {
+    console.log("❌ Invalid password for:", email);
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid credentials" });
+  }
 
-      const visibilityUsers = roleVisibility.map((v) => ({
-        id: v.target.id,
-        firstName: v.target.firstName,
-        lastName: v.target.lastName,
-        email: v.target.email,
-        phoneNumber: v.target.phoneNumber,
-        companyId: v.target.companyId,
-        storeId: v.target.storeId,
-        store: v.target.store,
-      }));
+  console.log("⚡ Generating tokens...");
+  const { accessToken, refreshToken } = authService.generateTokens(user.id);
+  console.log("🔑 Tokens generated:", { accessToken, refreshToken });
 
-      const permissions = user.role.rolePermissions.map((p) => ({
-        id: p.permission.id,
-        name: p.permission.name,
-        module: p.permission.module,
-        action: p.permission.action,
-      }));
+  // Remove old refresh tokens
+  await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
 
-      return res.json({
-        success: true,
-        message: "Login successful",
-        data: {
-          user: {
-            ...user,
-            permissions,
-            visibility: visibilityUsers,
-          },
-          accessToken,
-          refreshToken,
-        },
-      });
-    } catch (err) {
-      next(err);
-    }
+  console.log("🗑️ Old refresh tokens removed");
+
+  await prisma.refreshToken.create({
+    data: {
+      token: refreshToken,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 30 * 86400000),
+    },
+  });
+
+  console.log("💾 New refresh token stored");
+
+  console.log("👀 Fetching role visibility for role:", user.roleId);
+  const roleVisibility = await prisma.roleUserVisibility.findMany({
+    where: { roleId: user.roleId },
+    include: {
+      target: { include: { store: true, company: true } },
+    },
+  });
+
+  console.log("👁 Visibility count:", roleVisibility.length);
+
+  const visibilityUsers = roleVisibility.map((v) => ({
+    id: v.target.id,
+    firstName: v.target.firstName,
+    lastName: v.target.lastName,
+    email: v.target.email,
+    phoneNumber: v.target.phoneNumber,
+    companyId: v.target.companyId,
+    storeId: v.target.storeId,
+    store:[v.target.store],
+  }));
+
+  console.log("👁 Visibility Users:", visibilityUsers);
+
+  const permissions = user.role.rolePermissions.map((p) => ({
+    id: p.permission.id,
+    name: p.permission.name,
+    module: p.permission.module,
+    action: p.permission.action,
+  }));
+
+  console.log("🔐 Permissions mapped:", permissions.length);
+
+  console.log("✅ Login successful for:", user.email);
+  
+  const cleanUser = {
+    ...user,
+    store: user.store ? [user.store] : [], // <-- Fix main user.store
+  };
+
+  return res.json({
+    success: true,
+    message: "Login successful",
+    data: {
+      user: {
+        ...cleanUser,
+        permissions,
+        visibility: visibilityUsers,
+      },
+      accessToken,
+      refreshToken,
+    },
+  });
+
+} catch (err) {
+  console.error("🔥 LOGIN ERROR:", err);
+  next(err);
+}
+
   }
 
   async signup(req, res, next) {

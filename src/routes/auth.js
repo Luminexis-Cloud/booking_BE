@@ -135,11 +135,4 @@ router.post(
   authController.updatePassword
 );
 
-// ======================================================
-// OPTIONAL ROUTES (for future use)
-// ======================================================
-// router.post('/refresh-token', refreshTokenValidation, handleValidationErrors, authController.refreshToken);
-// router.post('/logout', authController.logout);
-// router.get('/profile', authenticateToken, authController.getProfile);
-
 module.exports = router;
