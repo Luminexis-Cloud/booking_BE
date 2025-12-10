@@ -12,13 +12,12 @@ app.post('/api/auth/signup', (req, res) => {
   const { firstName, lastName, phoneNumber } = req.body;
   
   // Simple validation
-  if (!firstName || !lastName || !phoneNumber) {
+  if (!firstName) {
     return res.status(400).json({
       success: false,
       message: 'Validation failed',
       errors: [
         { field: 'firstName', message: 'First name is required' },
-        { field: 'lastName', message: 'Last name is required' },
         { field: 'phoneNumber', message: 'Phone number is required' }
       ]
     });
