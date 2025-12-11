@@ -549,31 +549,53 @@ class Client {
 
   // Business logic for deleting client under store
   static async deleteClientUnderStore(clientId, storeId, userId) {
-    // Validate store ownership
-    await this.validateStoreOwnership(storeId, userId);
-
-    // Check if client exists
-    const existingClient = await prisma.client.findFirst({
-      where: {
-        clientId,
-        storeId,
-      },
-    });
-
-    if (!existingClient) {
-      throw new Error("Client not found");
-    }
-
-    // Delete client
-    await prisma.client.delete({
-      where: { clientId },
-    });
-
-    return {
+    console.log("➡️ deleteClientUnderStore called with:", {
       clientId,
       storeId,
       userId,
-    };
+    });
+
+    try {
+      console.log("🔍 Validating store ownership...");
+      await this.validateStoreOwnership(storeId, userId);
+      console.log("✔️ Store ownership validated");
+
+      console.log("🔎 Checking if client exists...");
+      const existingClient = await prisma.client.findFirst({
+        where: {
+          clientId,
+          storeId,
+        },
+      });
+
+      console.log("📌 existingClient result:", existingClient);
+
+      if (!existingClient) {
+        console.log("❌ Client not found");
+        throw new Error("Client not found");
+      }
+
+      console.log("🗑️ Deleting client...");
+      const deletedClient = await prisma.client.delete({
+        where: {
+          clientId_storeId: {
+            clientId,
+            storeId,
+          },
+        },
+      });
+
+      console.log("✔️ Client deleted:", deletedClient);
+
+      return {
+        clientId,
+        storeId,
+        userId,
+      };
+    } catch (err) {
+      console.error("🔥 Error inside deleteClientUnderStore:", err);
+      throw err; // rethrow so API layer handles it
+    }
   }
 }
 
