@@ -5,28 +5,40 @@ const prisma = new PrismaClient();
 class RoleController {
     // 1️⃣ Create a new role
     async createRole(req, res, next) {
+    console.log("=== Create Role API Hit ===");
+
     try {
+        console.log("Request Body:", req.body);
+        console.log("Request Params:", req.params);
+        console.log("Request Query:", req.query);
+        console.log("User:", req.user);
+
         const { name, description, userLimit, permissionIds, visibleUserIds } = req.body;
+
         const companyId =
             req.params.companyId ||
             req.query.companyId ||
-            req.user.companyId;
+            req.user?.companyId;
+
+        console.log("Resolved Company ID:", companyId);
 
         if (!companyId) {
+            console.log("❌ Missing companyId");
             return res.status(400).json({
                 success: false,
                 message: "companyId is required."
             });
         }
 
-        console.log("Company ID:", companyId);
-
         // Duplicate check
+        console.log("🔍 Checking for duplicate role:", name);
         const existing = await prisma.role.findFirst({
             where: { name, companyId }
         });
+        console.log("Duplicate Check Result:", existing);
 
         if (existing) {
+            console.log("❌ Role already exists");
             return res.status(400).json({
                 success: false,
                 message: "Role already exists for this company"
@@ -34,6 +46,7 @@ class RoleController {
         }
 
         // Create role
+        console.log("🛠 Creating role...");
         const role = await prisma.role.create({
             data: {
                 name,
@@ -42,27 +55,37 @@ class RoleController {
                 companyId
             }
         });
+        console.log("✅ Role Created:", role);
 
         // Permissions
         if (permissionIds?.length > 0) {
+            console.log("🔗 Creating role permissions:", permissionIds);
             await prisma.rolePermission.createMany({
                 data: permissionIds.map(pid => ({
                     roleId: role.id,
                     permissionId: pid
                 }))
             });
+            console.log("✅ Permissions added");
+        } else {
+            console.log("ℹ No permissionIds provided");
         }
 
         // Visibility
         if (visibleUserIds?.length > 0) {
+            console.log("👀 Creating visibility records:", visibleUserIds);
             await prisma.roleUserVisibility.createMany({
                 data: visibleUserIds.map(uid => ({
                     roleId: role.id,
                     targetId: uid
                 }))
             });
+            console.log("✅ User visibility added");
+        } else {
+            console.log("ℹ No visibleUserIds provided");
         }
 
+        console.log("🎉 Final Response Sent");
         return res.status(201).json({
             success: true,
             message: "Role created successfully",
@@ -70,7 +93,12 @@ class RoleController {
         });
 
     } catch (error) {
-        console.error("Role Create Error:", error);
+        console.error("💥 Role Create Error:", error);
+
+        // Add deeper Prisma error debugging
+        if (error.meta) console.error("Prisma Meta:", error.meta);
+        if (error.code) console.error("Prisma Code:", error.code);
+
         next(error);
     }
 }
