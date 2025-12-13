@@ -11,7 +11,6 @@ class EmployeeController {
     try {
       const {
         firstName,
-        lastName,
         email,
         phoneNumber,
         roleId,
@@ -88,13 +87,13 @@ class EmployeeController {
       const employee = await prisma.user.create({
         data: {
           firstName,
-          lastName,
           email,
           phoneNumber,
           password: hashedPassword,
           companyId,
           storeId,
           roleId,
+          isActive: false,
           isVerified: false,
         },
         include: { role: true },
