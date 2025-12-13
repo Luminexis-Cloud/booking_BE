@@ -93,4 +93,9 @@ router.delete(
     employeeController.deleteEmployee.bind(employeeController)
 );
 
+router.post("/:employeeId/:companyId/send-invite",
+  authenticateToken,
+  employeeController.sendEmployeeInvitation.bind(employeeController)
+);
+
 module.exports = router;

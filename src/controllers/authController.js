@@ -261,7 +261,26 @@ class AuthController {
       .json({ success: false, message: "Invalid credentials" });
   }
 
-  if (!user.isActive) {
+  const isAdmin = user.userType === "ADMIN" || user.userType === "SUPER_ADMIN";
+  const isFirstTimeLogin =
+    !isAdmin && user.isVerified === false && user.isActive === false;
+
+  // 🆕 Activate & verify on first login
+  let updatedUser = user;
+
+  if (isFirstTimeLogin) {
+    console.log("🆕 First-time login → activating user:", user.id);
+
+    updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isActive: true,
+        isVerified: true,
+      },
+    });
+  }
+
+  if (!user.isActive && !isFirstTimeLogin) {
     console.log("🚫 User account deactivated:", user.id);
     return res
       .status(401)
