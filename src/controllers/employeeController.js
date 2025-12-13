@@ -100,16 +100,16 @@ class EmployeeController {
       });
 
       // Send email
-    //   await sendMail(
-    //     email,
-    //     `Welcome to ${company.name}`,
-    //     `
-    //             <h3>Welcome to ${company.name}!</h3>
-    //             <p>Your account has been created as <b>${employee.role.name}</b>.</p>
-    //             <p>Email: ${email} <br> Temporary Password: ${tempPassword}</p>
-    //             <p>Please change your password at first login.</p>
-    //             `
-    //   );
+      //   await sendMail(
+      //     email,
+      //     `Welcome to ${company.name}`,
+      //     `
+      //             <h3>Welcome to ${company.name}!</h3>
+      //             <p>Your account has been created as <b>${employee.role.name}</b>.</p>
+      //             <p>Email: ${email} <br> Temporary Password: ${tempPassword}</p>
+      //             <p>Please change your password at first login.</p>
+      //             `
+      //   );
 
       res.status(201).json({
         success: true,
@@ -289,8 +289,6 @@ class EmployeeController {
         },
       });
 
-      console.log(employee, "pppppppppppppppppppppppppppppp");
-
       if (!employee) {
         return res.status(404).json({
           success: false,
@@ -304,26 +302,39 @@ class EmployeeController {
           message: "Employee email not found.",
         });
       }
+
+      // 🔐 Generate & update temporary password
       const tempPassword = generateRandomPassword();
-      const email = employee.email;
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
       await prisma.user.update({
-        where: { email },
-        data: { password: hashedPassword },
+        where: { id: employee.id }, // ✅ FIXED
+        data: {
+          password: hashedPassword,
+          isActive: true, // ✅ FIXED
+          isVerified: true, // ✅ FIXED
+        },
       });
 
       // ✉️ Send email
-      await sendMail(
-        email,
-        `Welcome to ${employee.name}`,
+      const mailInfo = await sendMail(
+        employee.email,
+        `Welcome to ${employee.firstName}`, // ✅ FIXED
         `
-          <h3>Welcome to ${employee.name}!</h3>
-          <p>Your account has been created as <b>${employee.role.name}</b>.</p>
-          <p>Email: ${employee.email} <br> Temporary Password: ${tempPassword}</p>
-          <p>Please change your password at first login.</p>
-          `
+        <h3>Welcome to ${employee.firstName}!</h3>
+        <p>Your account has been created as <b>${employee.role.name}</b>.</p>
+        <p>Email: ${employee.email} <br> Temporary Password: ${tempPassword}</p>
+        <p>Please change your password at first login.</p>
+      `
       );
+
+      // ✅ OPTIONAL: check mail status
+      if (mailInfo?.rejected?.length) {
+        return res.status(500).json({
+          success: false,
+          message: "Email rejected by mail server.",
+        });
+      }
 
       return res.status(200).json({
         success: true,
