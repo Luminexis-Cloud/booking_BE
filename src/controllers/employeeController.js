@@ -310,9 +310,7 @@ class EmployeeController {
       await prisma.user.update({
         where: { id: employee.id }, // ✅ FIXED
         data: {
-          password: hashedPassword,
-          isActive: true, // ✅ FIXED
-          isVerified: true, // ✅ FIXED
+          password: hashedPassword
         },
       });
 
