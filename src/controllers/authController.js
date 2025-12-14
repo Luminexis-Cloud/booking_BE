@@ -354,7 +354,11 @@ class AuthController {
   
   const cleanUser = {
     ...user,
-    store: user.store ? [user.store] : [], // <-- Fix main user.store
+    store: user.store ? [{
+        storeId: user.store.id,
+        ...user.store,
+      }]
+    : [],
   };
 
   return res.json({
