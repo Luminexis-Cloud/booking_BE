@@ -6,7 +6,7 @@ class StoreController {
   async createStore(req, res, next) {
     try {
       const { userId } = req.params;
-      const { name, areaOfWork, teamSize, date, signature, companyId } =
+      const { name, areaOfWork, teamSize, date, signature, companyId, phoneNumber } =
         req.body;
 
       if (!companyId) {
@@ -21,6 +21,7 @@ class StoreController {
         signature,
         userId,
         companyId, // ✅ Store belongs to a company now
+        phoneNumber
       };
 
       const store = await storeService.createStore(storeData);
@@ -37,6 +38,7 @@ class StoreController {
           teamSize: store.teamSize,
           date: store.date,
           signature: store.signature,
+          phoneNumber: store.phoneNumber
         },
         201
       );
