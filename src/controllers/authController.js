@@ -134,7 +134,6 @@ class AuthController {
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
-          phoneNumber: phone,
           companyId: company.id,
           roleId: role.id,
           isVerified: true,
