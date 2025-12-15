@@ -332,6 +332,7 @@ class Store {
           companyId: true,
           createdAt: true,
           updatedAt: true,
+          phoneNumber: true
         },
       });
 
