@@ -126,7 +126,10 @@ class EmployeeController {
   async listEmployees(req, res, next) {
     try {
       const companyId = req.query.companyId || req.body.companyId;
+      const userId = req.user.userId;
 
+      console.log(userId);
+      
       if (!companyId)
         return res.status(400).json({
           success: false,
