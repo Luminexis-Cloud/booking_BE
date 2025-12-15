@@ -76,6 +76,7 @@ class StoreController {
         teamSize: store.teamSize,
         date: store.date,
         signature: store.signature,
+        phoneNumber: store.phoneNumber
       }));
 
       return sendSuccess(res, "All stores fetched successfully", {
@@ -112,6 +113,7 @@ class StoreController {
           teamSize: store.teamSize,
           date: store.date,
           signature: store.signature,
+          phoneNumber: store.phoneNumber
         },
       });
     } catch (error) {
