@@ -113,6 +113,7 @@ class AuthController {
           teamSize: teamMembersCount,
           date: new Date().toISOString(),
           signature: nickname,
+          phoneNumber: phone,
 
           manager: {
             connect: { id: userId },
