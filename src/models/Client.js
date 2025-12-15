@@ -85,7 +85,7 @@ class Client {
     }
 
     // Validate store ownership
-    await this.validateStoreOwnership(storeId, userId);
+    //await this.validateStoreOwnership(storeId, userId);
 
     // Duplicate EMAIL check
     if (email) {
@@ -239,7 +239,7 @@ class Client {
   // Business logic for getting all clients under a store
   static async getClientsByStore(storeId, userId, page = 1, limit = 20) {
     // Validate store ownership
-    await this.validateStoreOwnership(storeId, userId);
+    //await this.validateStoreOwnership(storeId, userId);
 
     const skip = (page - 1) * limit;
 
