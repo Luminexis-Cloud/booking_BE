@@ -73,41 +73,77 @@ class Client {
   // Business logic for client creation under store
   // CREATE CLIENT UNDER STORE
   static async createClient(storeId, userId, clientData) {
+  const startTime = Date.now();
+
+  try {
+    console.log("[CLIENT SERVICE] createClient started", {
+      storeId,
+      userId,
+      clientData,
+    });
+
     const { name, phone, email, notes, birthday, isActive = true } = clientData;
 
     // VALIDATION
+    console.log("[CLIENT SERVICE] Validating client data");
     this.validateName(name);
     this.validatePhone(phone);
     this.validateEmail(email);
 
     if (birthday !== "" && birthday !== null && birthday !== undefined) {
+      console.log("[CLIENT SERVICE] Validating birthday", { birthday });
       this.validateBirthday(birthday);
     }
 
-    // Validate store ownership
-    //await this.validateStoreOwnership(storeId, userId);
-
     // Duplicate EMAIL check
     if (email) {
+      console.log("[CLIENT SERVICE] Checking duplicate email", {
+        email,
+        storeId,
+      });
+
       const existingClientByEmail = await prisma.client.findFirst({
         where: { email, storeId },
       });
+
       if (existingClientByEmail) {
-        throw new Error("Client with this email already exists for this store");
+        console.warn("[CLIENT SERVICE] Duplicate email detected", {
+          email,
+          storeId,
+          existingClientId: existingClientByEmail.clientId,
+        });
+
+        throw new Error(
+          "Client with this email already exists for this store"
+        );
       }
     }
 
     // Duplicate PHONE check
+    console.log("[CLIENT SERVICE] Checking duplicate phone", {
+      phone,
+      storeId,
+    });
+
     const existingClientByPhone = await prisma.client.findFirst({
       where: { phone, storeId },
     });
+
     if (existingClientByPhone) {
+      console.warn("[CLIENT SERVICE] Duplicate phone detected", {
+        phone,
+        storeId,
+        existingClientId: existingClientByPhone.clientId,
+      });
+
       throw new Error(
         "Client with this phone number already exists for this store"
       );
     }
 
     // CREATE CLIENT
+    console.log("[CLIENT SERVICE] Creating client in database");
+
     const client = await prisma.client.create({
       data: {
         name: name.trim(),
@@ -137,8 +173,26 @@ class Client {
       },
     });
 
+    console.log("[CLIENT SERVICE] Client created successfully", {
+      clientId: client.clientId,
+      storeId,
+      durationMs: Date.now() - startTime,
+    });
+
     return client;
+  } catch (error) {
+    console.error("[CLIENT SERVICE] createClient failed", {
+      message: error.message,
+      stack: error.stack,
+      storeId,
+      userId,
+      clientData,
+    });
+
+    throw error;
   }
+}
+
 
   // Business logic for getting all clients for a user
   static async getClientsByUserId(userId, page = 1, limit = 20) {
