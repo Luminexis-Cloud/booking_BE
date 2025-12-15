@@ -77,96 +77,129 @@ class AuthController {
   }
 
   async completeCompanySetup(req, res, next) {
-    try {
-      const {
-        userId,
-        phone,
-        companyName,
-        nickname,
-        country,
-        industry,
-        teamMembersCount,
-      } = req.body;
-      
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (!user)
-        return res
-          .status(404)
-          .json({ success: false, message: "User not found" });
+  try {
+    console.log("[completeCompanySetup] Request body:", req.body);
 
-      const company = await prisma.company.create({
-        data: {
-          name: companyName,
-          signatureName: nickname || null,
-          country: country || null,
-          industry: industry || null,
-          teamMembersCount: teamMembersCount || null,
-          domain: nickname || null,
-          userLimit: 100,
-        },
-      });
+    const {
+      userId,
+      phone,
+      companyName,
+      nickname,
+      country,
+      industry,
+      teamMembersCount,
+    } = req.body;
 
-      const store = await prisma.store.create({
-        data: {
-          name: companyName,
-          areaOfWork: industry,
-          teamSize: teamMembersCount,
-          date: new Date().toISOString(),
-          signature: nickname,
-          phoneNumber: phone,
+    console.log("[completeCompanySetup] Looking up user:", userId);
 
-          manager: {
-            connect: { id: userId },
-          },
-
-          company: {
-            connect: { id: company.id },
-          },
-        },
-      });
-
-
-      // SuperAdmin role
-      const role = await prisma.role.findUnique({
-        where: { name: "SuperAdmin" },
-      });
-
-      const updatedUser = await prisma.user.update({
-        where: { id: userId },
-        data: {
-          companyId: company.id,
-          roleId: role.id,
-          isVerified: true,
-          storeId: store.id
-        },
-        include: { role: true, company: true },
-      });
-
-      const { accessToken, refreshToken } = authService.generateTokens(userId);
-
-      await prisma.refreshToken.deleteMany({ where: { userId } });
-      await prisma.refreshToken.create({
-        data: {
-          token: refreshToken,
-          userId,
-          expiresAt: new Date(Date.now() + 30 * 86400000),
-        },
-      });
-
-      return res.json({
-        success: true,
-        message: "Company setup completed",
-        data: {
-          user: updatedUser,
-          company,
-          accessToken,
-          refreshToken,
-        },
-      });
-    } catch (err) {
-      next(err);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      console.warn("[completeCompanySetup] User not found:", userId);
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
+
+    console.log("[completeCompanySetup] User found:", user.id);
+
+    console.log("[completeCompanySetup] Creating company...");
+    const company = await prisma.company.create({
+      data: {
+        name: companyName,
+        signatureName: nickname || null,
+        country: country || null,
+        industry: industry || null,
+        teamMembersCount: teamMembersCount || null,
+        domain: nickname || null,
+        userLimit: 100,
+      },
+    });
+
+    console.log("[completeCompanySetup] Company created:", company.id);
+
+    console.log("[completeCompanySetup] Creating store...");
+    const store = await prisma.store.create({
+      data: {
+        name: companyName,
+        areaOfWork: industry,
+        teamSize: teamMembersCount,
+        date: new Date().toISOString(),
+        signature: nickname,
+        phoneNumber: phone,
+
+        manager: {
+          connect: { id: userId },
+        },
+
+        company: {
+          connect: { id: company.id },
+        },
+      },
+    });
+
+    console.log("[completeCompanySetup] Store created:", store.id);
+
+    console.log("[completeCompanySetup] Fetching SuperAdmin role...");
+    const role = await prisma.role.findUnique({
+      where: { name: "SuperAdmin" },
+    });
+
+    if (!role) {
+      console.error("[completeCompanySetup] SuperAdmin role not found");
+      throw new Error("SuperAdmin role not found");
+    }
+
+    console.log("[completeCompanySetup] SuperAdmin role found:", role.id);
+
+    console.log("[completeCompanySetup] Updating user...");
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        phoneNumber: phone,
+        companyId: company.id,
+        roleId: role.id,
+        isVerified: true,
+        storeId: store.id,
+      },
+      include: { role: true, company: true },
+    });
+
+    console.log("[completeCompanySetup] User updated:", updatedUser.id);
+
+    console.log("[completeCompanySetup] Generating tokens...");
+    const { accessToken, refreshToken } =
+      authService.generateTokens(userId);
+
+    console.log("[completeCompanySetup] Deleting old refresh tokens...");
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+
+    console.log("[completeCompanySetup] Saving new refresh token...");
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId,
+        expiresAt: new Date(Date.now() + 30 * 86400000),
+      },
+    });
+
+    console.log("[completeCompanySetup] Setup completed successfully");
+
+    return res.json({
+      success: true,
+      message: "Company setup completed",
+      data: {
+        user: updatedUser,
+        company,
+        accessToken,
+        refreshToken,
+      },
+    });
+  } catch (err) {
+    console.error("[completeCompanySetup] ERROR:", err);
+    next(err);
   }
+}
+
 
   async sendSignupOtp(req, res, next) {
     try {
