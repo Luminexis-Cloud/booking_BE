@@ -19,7 +19,6 @@ async function main() {
       country: "USA",
       industry: "Beauty & Salon",
       teamMembersCount: 10,
-      phoneNumber: "+923446984848",
       userLimit: 100,
     },
   });
