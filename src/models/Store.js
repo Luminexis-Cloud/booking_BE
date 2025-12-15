@@ -62,8 +62,16 @@ class Store {
 
   // Business logic for store creation
   static async createStore(storeData) {
-    const { name, areaOfWork, teamSize, date, signature, userId, companyId, phoneNumber} =
-      storeData;
+    const {
+      name,
+      areaOfWork,
+      teamSize,
+      date,
+      signature,
+      userId,
+      companyId,
+      phoneNumber,
+    } = storeData;
 
     this.validateName(name);
     this.validateAreaOfWork(areaOfWork);
@@ -92,7 +100,7 @@ class Store {
         teamSize: parseInt(teamSize),
         date: date?.trim(),
         signature: signature?.trim(),
-        phoneNumber: phoneNumber
+        phoneNumber: phoneNumber,
       },
     });
 
@@ -124,7 +132,7 @@ class Store {
         managerId: true,
         createdAt: true,
         updatedAt: true,
-        phoneNumber:true,
+        phoneNumber: true,
       },
     });
 
@@ -161,7 +169,7 @@ class Store {
           companyId: true,
           createdAt: true,
           updatedAt: true,
-          phoneNumber:true
+          phoneNumber: true,
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -219,7 +227,7 @@ class Store {
         companyId: true,
         createdAt: true,
         updatedAt: true,
-        phoneNumber: true
+        phoneNumber: true,
       },
     });
 
@@ -232,66 +240,108 @@ class Store {
 
   // Business logic for updating a store
   static async updateStore(storeId, updateData, userId, companyId) {
-    if (updateData.name !== undefined) {
-      this.validateName(updateData.name);
-      updateData.name = updateData.name.trim();
-    }
-    if (updateData.areaOfWork !== undefined) {
-      this.validateAreaOfWork(updateData.areaOfWork);
-      updateData.areaOfWork = updateData.areaOfWork.trim();
-    }
-    if (updateData.teamSize !== undefined) {
-      this.validateTeamSize(updateData.teamSize);
-      updateData.teamSize = parseInt(updateData.teamSize);
-    }
-    if (updateData.date !== undefined) {
-      this.validateDate(updateData.date);
-      updateData.date = updateData.date.trim();
-    }
-    if (updateData.signature !== undefined) {
-      this.validateSignature(updateData.signature);
-      updateData.signature = updateData.signature.trim();
-    }
+    try {
+      console.log("[updateStore] Called with:", {
+        storeId,
+        userId,
+        companyId,
+        updateData,
+      });
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
+      if (updateData.name !== undefined) {
+        console.log("[updateStore] Validating name:", updateData.name);
+        this.validateName(updateData.name);
+        updateData.name = updateData.name.trim();
+      }
 
-    if (!user) {
-      throw new Error("User not found");
+      if (updateData.areaOfWork !== undefined) {
+        console.log(
+          "[updateStore] Validating areaOfWork:",
+          updateData.areaOfWork
+        );
+        this.validateAreaOfWork(updateData.areaOfWork);
+        updateData.areaOfWork = updateData.areaOfWork.trim();
+      }
+
+      if (updateData.teamSize !== undefined) {
+        console.log("[updateStore] Validating teamSize:", updateData.teamSize);
+        this.validateTeamSize(updateData.teamSize);
+        updateData.teamSize = parseInt(updateData.teamSize, 10);
+      }
+
+      if (updateData.date !== undefined) {
+        console.log("[updateStore] Validating date:", updateData.date);
+        this.validateDate(updateData.date);
+        updateData.date = updateData.date.trim();
+      }
+
+      if (updateData.signature !== undefined) {
+        console.log(
+          "[updateStore] Validating signature:",
+          updateData.signature
+        );
+        this.validateSignature(updateData.signature);
+        updateData.signature = updateData.signature.trim();
+      }
+
+      console.log("[updateStore] Fetching user:", userId);
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        console.warn("[updateStore] User not found:", userId);
+        throw new Error("User not found");
+      }
+
+      console.log("[updateStore] User found:", user.id);
+
+      console.log("[updateStore] Fetching existing store...");
+      const existingStore = await prisma.store.findFirst({
+        where: {
+          id: storeId,
+          managerId: userId,
+          companyId: companyId,
+        },
+      });
+
+      if (!existingStore) {
+        console.warn("[updateStore] Store not found or access denied:", {
+          storeId,
+          userId,
+          companyId,
+        });
+        throw new Error("Store not found");
+      }
+
+      console.log("[updateStore] Existing store found:", existingStore.id);
+      console.log("[updateStore] Update payload after validation:", updateData);
+
+      console.log("[updateStore] Updating store...");
+      const store = await prisma.store.update({
+        where: { id: storeId },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          areaOfWork: true,
+          teamSize: true,
+          date: true,
+          signature: true,
+          managerId: true,
+          companyId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      console.log("[updateStore] Store updated successfully:", store.id);
+
+      return store;
+    } catch (error) {
+      console.error("[updateStore] ERROR:", error);
+      throw error;
     }
-
-    const existingStore = await prisma.store.findFirst({
-      where: {
-        id: storeId,
-        managerId: userId,
-        companyId: companyId,
-      },
-    });
-
-    if (!existingStore) {
-      throw new Error("Store not found");
-    }
-    console.log("📝 existingStore:",existingStore,"📝 Debug Update Fields:", updateData);
-
-    const store = await prisma.store.update({
-      where: { id: storeId },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        areaOfWork: true,
-        teamSize: true,
-        date: true,
-        signature: true,
-        managerId: true,
-        companyId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return store;
   }
 
   // Business logic for deleting a store
