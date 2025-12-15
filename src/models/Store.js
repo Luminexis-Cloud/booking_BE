@@ -161,6 +161,7 @@ class Store {
           companyId: true,
           createdAt: true,
           updatedAt: true,
+          phoneNumber:true
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -218,6 +219,7 @@ class Store {
         companyId: true,
         createdAt: true,
         updatedAt: true,
+        phoneNumber: true
       },
     });
 
