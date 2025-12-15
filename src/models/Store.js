@@ -62,7 +62,7 @@ class Store {
 
   // Business logic for store creation
   static async createStore(storeData) {
-    const { name, areaOfWork, teamSize, date, signature, userId, companyId } =
+    const { name, areaOfWork, teamSize, date, signature, userId, companyId, phoneNumber} =
       storeData;
 
     this.validateName(name);
@@ -84,6 +84,7 @@ class Store {
         teamSize,
         date,
         signature,
+        phoneNumber,
       },
       processed: {
         name: name?.trim(),
@@ -91,6 +92,7 @@ class Store {
         teamSize: parseInt(teamSize),
         date: date?.trim(),
         signature: signature?.trim(),
+        phoneNumber: phoneNumber
       },
     });
 
@@ -101,6 +103,7 @@ class Store {
         teamSize: parseInt(teamSize),
         date: date.trim(),
         signature: signature.trim(),
+        phoneNumber: phoneNumber,
 
         company: {
           connect: { id: companyId },
@@ -121,6 +124,7 @@ class Store {
         managerId: true,
         createdAt: true,
         updatedAt: true,
+        phoneNumber:true,
       },
     });
 
@@ -208,6 +212,7 @@ class Store {
         areaOfWork: true,
         teamSize: true,
         date: true,
+        phoneNumber: true,
         signature: true,
         managerId: true,
         companyId: true,

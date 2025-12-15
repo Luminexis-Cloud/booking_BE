@@ -91,6 +91,7 @@ model Store {
   updatedAt  DateTime @updatedAt
   companyId  String
   managerId  String
+  phoneNumber String
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   manager   User?   @relation("StoreToManager", fields: [managerId], references: [id])
