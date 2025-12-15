@@ -150,40 +150,69 @@ class ClientController {
 
   // Create a new client under a store
   async createClientUnderStore(req, res, next) {
-    try {
-      const { userId, storeId } = req.params;
-      const clientData = req.body;
+  const startTime = Date.now();
 
-      const client = await clientService.createClientUnderStore(
-        storeId,
-        userId,
-        clientData
-      );
+  try {
+    const { userId, storeId } = req.params;
+    const clientData = req.body;
 
-      // Format information - if empty array, return empty object structure
-      const formattedInformation = Array.isArray(client.information)
-        ? client.information
-        : [];
+    console.log("[CREATE CLIENT] Request received", {
+      userId,
+      storeId,
+      body: clientData,
+    });
 
-      res.status(201).json({
-        message: "Client created successfully",
-        client: {
-          clientId: client.clientId,
-          userId: client.userId,
-          storeId: client.storeId,
-          name: client.name,
-          phone: client.phone,
-          email: replaceNullWithEmptyString(client.email),
-          notes: replaceNullWithEmptyString(client.notes),
-          birthday: replaceNullWithEmptyString(client.birthday),
-          information: formattedInformation,
-          isActive: client.isActive,
-        },
-      });
-    } catch (error) {
-      next(error);
-    }
+    const client = await clientService.createClientUnderStore(
+      storeId,
+      userId,
+      clientData
+    );
+
+    console.log("[CREATE CLIENT] Client created in service", {
+      clientId: client.clientId,
+      storeId: client.storeId,
+      userId: client.userId,
+    });
+
+    // Format information - if empty array, return empty array
+    const formattedInformation = Array.isArray(client.information)
+      ? client.information
+      : [];
+
+    const responsePayload = {
+      message: "Client created successfully",
+      client: {
+        clientId: client.clientId,
+        userId: client.userId,
+        storeId: client.storeId,
+        name: client.name,
+        phone: client.phone,
+        email: replaceNullWithEmptyString(client.email),
+        notes: replaceNullWithEmptyString(client.notes),
+        birthday: replaceNullWithEmptyString(client.birthday),
+        information: formattedInformation,
+        isActive: client.isActive,
+      },
+    };
+
+    console.log("[CREATE CLIENT] Response sent", {
+      clientId: client.clientId,
+      durationMs: Date.now() - startTime,
+    });
+
+    res.status(201).json(responsePayload);
+  } catch (error) {
+    console.error("[CREATE CLIENT] Error occurred", {
+      message: error.message,
+      stack: error.stack,
+      params: req.params,
+      body: req.body,
+    });
+
+    next(error);
   }
+}
+
 
   // Get all clients under a store
   async getClientsUnderStore(req, res, next) {
