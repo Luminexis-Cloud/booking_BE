@@ -74,44 +74,47 @@ async function main() {
   // 3️⃣ PERMISSIONS
   //
   const permissionsData = [
-    // Employees
-    { name: "Employees_view_all", module: "Employees", action: "view_all" },
-    { name: "Employees_view_specific", module: "Employees", action: "view_specific" },
-    { name: "Employees_add", module: "Employees", action: "add" },
-    { name: "Employees_edit_other", module: "Employees", action: "edit_other" },
-    { name: "Employees_delete", module: "Employees", action: "delete" },
+  // Employees
+  { name: "View all employees", module: "Employees", action: "view_all" },
+  { name: "Add employee", module: "Employees", action: "add" },
+  { name: "Edit other employees", module: "Employees", action: "edit_other" },
+  { name: "Delete employee", module: "Employees", action: "delete" },
 
-    // Appointments
-    { name: "Appointments_add", module: "Appointments", action: "add" },
-    { name: "Appointments_edit", module: "Appointments", action: "edit" },
-    { name: "Appointments_edit_past", module: "Appointments", action: "edit_past" },
-    { name: "Appointments_delete", module: "Appointments", action: "delete" },
-    { name: "Appointments_view_all", module: "Appointments", action: "view_all" },
+  // Appointments
+  { name: "Create appointment", module: "Appointments", action: "add" },
+  { name: "Edit appointment", module: "Appointments", action: "edit" },
+  { name: "Delete appointment", module: "Appointments", action: "delete" },
+  { name: "View all appointments", module: "Appointments", action: "view_all" },
 
-    // Services
-    { name: "Services_add_edit", module: "Services", action: "add_edit" },
-    { name: "Services_delete", module: "Services", action: "delete" },
-    { name: "Services_view_all", module: "Services", action: "view_all" },
+  // Services
+  { name: "Add or edit services", module: "Services", action: "add_edit" },
+  { name: "Delete services", module: "Services", action: "delete" },
+  { name: "View all services", module: "Services", action: "view_all" },
 
-    // Categories
-    { name: "Categories_add_edit", module: "Categories", action: "add_edit" },
-    { name: "Categories_delete", module: "Categories", action: "delete" },
-    { name: "Categories_view_all", module: "Categories", action: "view_all" },
+  // Categories
+  { name: "Add or edit categories", module: "Categories", action: "add_edit" },
+  { name: "Delete categories", module: "Categories", action: "delete" },
+  { name: "View all categories", module: "Categories", action: "view_all" },
 
-    // Clients
-    { name: "Clients_view_all", module: "Clients", action: "view_all" },
-    { name: "Clients_add_edit", module: "Clients", action: "add_edit" },
-    { name: "Clients_delete", module: "Clients", action: "delete" },
-    { name: "Clients_view_phone_numbers", module: "Clients", action: "view_phone_numbers" },
+  // Clients
+  { name: "View all clients", module: "Clients", action: "view_all" },
+  { name: "Add or edit clients", module: "Clients", action: "add_edit" },
+  { name: "Delete clients", module: "Clients", action: "delete" },
+  {
+    name: "View client phone numbers",
+    module: "Clients",
+    action: "view_phone_numbers",
+  },
 
-    // Invoices
-    { name: "Invoices_add_edit", module: "Invoices", action: "add_edit" },
-    { name: "Invoices_delete", module: "Invoices", action: "delete" },
-    { name: "Invoices_view", module: "Invoices", action: "view" },
+  // Invoices
+  { name: "Add or edit invoices", module: "Invoices", action: "add_edit" },
+  { name: "Delete invoices", module: "Invoices", action: "delete" },
+  { name: "View invoices", module: "Invoices", action: "view" },
 
-    // Reports
-    { name: "Reports_view", module: "Reports", action: "view" },
-  ];
+  // Reports
+  { name: "View reports", module: "Reports", action: "view" },
+];
+
 
   const createdPermissions = [];
   for (const p of permissionsData) {

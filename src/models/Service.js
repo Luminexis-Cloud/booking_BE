@@ -150,9 +150,6 @@ class Service {
         where: {
           categoryId,
           storeId,
-          store: {
-            managerId: userId,
-          },
         },
         select: { id: true, categoryId: true, name: true, storeId: true },
       });
@@ -200,7 +197,7 @@ class Service {
       this.validateDate(date);
 
       // Validate store ownership
-      await this.validateStoreOwnership(storeId, userId);
+      //await this.validateStoreOwnership(storeId, userId);
 
       // Validate category ownership
       const category = await this.validateCategoryOwnership(
