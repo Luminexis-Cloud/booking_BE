@@ -137,7 +137,11 @@ class EmployeeController {
         });
 
       const employees = await prisma.user.findMany({
-        where: { companyId },
+        where: { companyId,
+          id: {
+                not: userId,
+              },
+         },
         include: { role: true, store: true },
         orderBy: { createdAt: "desc" },
       });
