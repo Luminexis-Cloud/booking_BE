@@ -187,6 +187,7 @@ async function main() {
       signature: "Authorized",
       companyId: company.id,
       managerId: superAdmin.id,
+      phoneNumber: "+923446984848"
     },
   });
 
