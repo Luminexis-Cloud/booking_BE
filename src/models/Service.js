@@ -475,7 +475,6 @@ class Service {
     const store = await prisma.store.findFirst({
       where: {
         id: storeId,
-        managerId: userId,
       },
       select: { id: true },
     });
