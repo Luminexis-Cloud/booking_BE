@@ -99,8 +99,7 @@ router.post("/:employeeId/:companyId/send-invite",
 );
 
 router.patch(
-  "/employees/:employeeId/credentials",
-  authenticateToken,
+  "/:employeeId/credentials",
   validateEmployeeId,
   employeeController.adminUpdateEmployeeCredentials.bind(employeeController)
 );
