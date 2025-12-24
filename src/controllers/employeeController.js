@@ -469,7 +469,7 @@ class EmployeeController {
           where: { email: newEmail },
         });
 
-        if (emailExists && emailExists.id !== employeeId) {
+        if (emailExists && emailExists.id === employeeId) {
           console.info("ℹ️ Email already in use", {
             newEmail,
             employeeId,
