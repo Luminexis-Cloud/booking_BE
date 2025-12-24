@@ -354,11 +354,29 @@ class EmployeeController {
 
   async adminUpdateEmployeeCredentials(req, res, next) {
     try {
-      const { id: employeeId } = req.params;
-      const { companyId, newEmail, newPassword } = req.body;
+      const { employeeId } = req.params;
+      const { companyId, newEmail, newPassword, adminCurrentPassword } =
+        req.body;
       const adminUserId = req.user.userId;
 
+      console.log("📥 Admin credential update request", {
+        adminUserId,
+        employeeId,
+        companyId,
+        updateEmail: !!newEmail,
+        updatePassword: !!newPassword,
+      });
+
+      if (!adminCurrentPassword) {
+        console.warn("⚠️ Missing adminCurrentPassword", { adminUserId });
+        return res.status(400).json({
+          success: false,
+          message: "Admin current password is required.",
+        });
+      }
+
       if (!companyId) {
+        console.warn("⚠️ Missing companyId", { adminUserId });
         return res.status(400).json({
           success: false,
           message: "companyId is required.",
@@ -366,13 +384,14 @@ class EmployeeController {
       }
 
       if (!newEmail && !newPassword) {
+        console.warn("⚠️ No update fields provided", { adminUserId });
         return res.status(400).json({
           success: false,
           message: "New email or new password is required.",
         });
       }
 
-      // 1️⃣ Verify admin belongs to company
+      // 1️⃣ Verify admin
       const admin = await prisma.user.findFirst({
         where: {
           id: adminUserId,
@@ -391,23 +410,37 @@ class EmployeeController {
       });
 
       if (!admin) {
+        console.warn("🚫 Unauthorized admin access attempt", {
+          adminUserId,
+          companyId,
+        });
         return res.status(403).json({
           success: false,
           message: "Unauthorized access.",
         });
       }
 
-      // 2️⃣ Check permission (IMPORTANT)
-      // const canManageEmployees = admin.role.rolePermissions.some(
-      //   (rp) => rp.permission.name === "MANAGE_EMPLOYEES"
-      // );
+      // 2️⃣ Verify admin password
+      const isAdminPasswordValid = await bcrypt.compare(
+        adminCurrentPassword,
+        admin.password
+      );
 
-      // if (!canManageEmployees) {
-      //   return res.status(403).json({
-      //     success: false,
-      //     message: "You do not have permission to manage employees.",
-      //   });
-      // }
+      if (!isAdminPasswordValid) {
+        console.warn("🚫 Invalid admin password attempt", {
+          adminUserId,
+          companyId,
+        });
+        return res.status(401).json({
+          success: false,
+          message: "Invalid admin password.",
+        });
+      }
+
+      console.log("✅ Admin authenticated", {
+        adminUserId,
+        companyId,
+      });
 
       // 3️⃣ Fetch employee
       const employee = await prisma.user.findFirst({
@@ -418,6 +451,10 @@ class EmployeeController {
       });
 
       if (!employee) {
+        console.info("ℹ️ Employee not found", {
+          employeeId,
+          companyId,
+        });
         return res.status(404).json({
           success: false,
           message: "Employee not found in this company.",
@@ -433,6 +470,10 @@ class EmployeeController {
         });
 
         if (emailExists && emailExists.id !== employeeId) {
+          console.info("ℹ️ Email already in use", {
+            newEmail,
+            employeeId,
+          });
           return res.status(409).json({
             success: false,
             message: "Email already in use.",
@@ -447,6 +488,10 @@ class EmployeeController {
       // 5️⃣ Password update
       if (newPassword) {
         if (newPassword.length < 8) {
+          console.warn("⚠️ Weak password attempt", {
+            adminUserId,
+            employeeId,
+          });
           return res.status(400).json({
             success: false,
             message: "Password must be at least 8 characters.",
@@ -462,23 +507,38 @@ class EmployeeController {
         data: updateData,
       });
 
+      console.log("✅ Employee credentials updated", {
+        adminUserId,
+        employeeId,
+        companyId,
+        updatedEmail: !!newEmail,
+        updatedPassword: !!newPassword,
+      });
+
       // 7️⃣ Invalidate employee sessions
       await prisma.refreshToken.deleteMany({
         where: { userId: employeeId },
       });
 
-      // 8️⃣ Send email to NEW email
+      console.log("🔐 Employee sessions invalidated", { employeeId });
+
+      // 8️⃣ Send email
       if (newEmail) {
         await sendMail(
           newEmail,
           "Your account credentials were updated",
           `
-        <p>Hello ${employee.firstName},</p>
-        <p>Your account credentials have been updated by an administrator.</p>
-        ${newPassword ? `<p><b>Temporary Password:</b> ${newPassword}</p>` : ""}
-        <p>Please verify your email and change your password after login.</p>
+          <p>Hello ${employee.firstName},</p>
+          <p>Your account credentials have been updated by an administrator.</p>
+          ${newPassword ? `<p><b>Temporary Password:</b> ${newPassword}</p>` : ""}
+          <p>Please verify your email and change your password after login.</p>
         `
         );
+
+        console.log("📧 Notification email sent", {
+          employeeId,
+          newEmail,
+        });
       }
 
       return res.json({
@@ -486,7 +546,10 @@ class EmployeeController {
         message: "Employee credentials updated successfully.",
       });
     } catch (error) {
-      console.error("❌ adminUpdateEmployeeCredentials error:", error);
+      console.error("❌ adminUpdateEmployeeCredentials error", {
+        message: error.message,
+        stack: error.stack,
+      });
       next(error);
     }
   }
