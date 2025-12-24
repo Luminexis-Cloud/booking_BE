@@ -56,7 +56,10 @@ const signupValidation = [
 const loginValidation = [
   body("email")
     .isEmail()
-    .normalizeEmail()
+    .normalizeEmail({
+  gmail_remove_dots: false,
+  gmail_remove_subaddress: false
+})
     .withMessage("Please provide a valid email"),
   body("password").notEmpty().withMessage("Password is required"),
 ];
