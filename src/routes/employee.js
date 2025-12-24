@@ -98,4 +98,11 @@ router.post("/:employeeId/:companyId/send-invite",
   employeeController.sendEmployeeInvitation.bind(employeeController)
 );
 
+router.patch(
+  "/employees/:employeeId/credentials",
+  authenticateToken,
+  validateEmployeeId,
+  employeeController.adminUpdateEmployeeCredentials.bind(employeeController)
+);
+
 module.exports = router;

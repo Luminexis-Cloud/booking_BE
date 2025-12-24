@@ -129,7 +129,7 @@ class EmployeeController {
       const userId = req.user.userId;
 
       console.log(userId);
-      
+
       if (!companyId)
         return res.status(400).json({
           success: false,
@@ -137,11 +137,12 @@ class EmployeeController {
         });
 
       const employees = await prisma.user.findMany({
-        where: { companyId,
+        where: {
+          companyId,
           id: {
-                not: userId,
-              },
-         },
+            not: userId,
+          },
+        },
         include: { role: true, store: true },
         orderBy: { createdAt: "desc" },
       });
@@ -317,7 +318,7 @@ class EmployeeController {
       await prisma.user.update({
         where: { id: employee.id }, // ✅ FIXED
         data: {
-          password: hashedPassword
+          password: hashedPassword,
         },
       });
 
@@ -347,6 +348,145 @@ class EmployeeController {
       });
     } catch (error) {
       console.error("❌ sendEmployeeInvitation error:", error);
+      next(error);
+    }
+  }
+
+  async adminUpdateEmployeeCredentials(req, res, next) {
+    try {
+      const { id: employeeId } = req.params;
+      const { companyId, newEmail, newPassword } = req.body;
+      const adminUserId = req.user.userId;
+
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          message: "companyId is required.",
+        });
+      }
+
+      if (!newEmail && !newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "New email or new password is required.",
+        });
+      }
+
+      // 1️⃣ Verify admin belongs to company
+      const admin = await prisma.user.findFirst({
+        where: {
+          id: adminUserId,
+          companyId,
+          isActive: true,
+        },
+        include: {
+          role: {
+            include: {
+              rolePermissions: {
+                include: { permission: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!admin) {
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized access.",
+        });
+      }
+
+      // 2️⃣ Check permission (IMPORTANT)
+      // const canManageEmployees = admin.role.rolePermissions.some(
+      //   (rp) => rp.permission.name === "MANAGE_EMPLOYEES"
+      // );
+
+      // if (!canManageEmployees) {
+      //   return res.status(403).json({
+      //     success: false,
+      //     message: "You do not have permission to manage employees.",
+      //   });
+      // }
+
+      // 3️⃣ Fetch employee
+      const employee = await prisma.user.findFirst({
+        where: {
+          id: employeeId,
+          companyId,
+        },
+      });
+
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "Employee not found in this company.",
+        });
+      }
+
+      const updateData = {};
+
+      // 4️⃣ Email update
+      if (newEmail) {
+        const emailExists = await prisma.user.findUnique({
+          where: { email: newEmail },
+        });
+
+        if (emailExists && emailExists.id !== employeeId) {
+          return res.status(409).json({
+            success: false,
+            message: "Email already in use.",
+          });
+        }
+
+        updateData.email = newEmail;
+        updateData.isVerified = false;
+        updateData.isActive = false;
+      }
+
+      // 5️⃣ Password update
+      if (newPassword) {
+        if (newPassword.length < 8) {
+          return res.status(400).json({
+            success: false,
+            message: "Password must be at least 8 characters.",
+          });
+        }
+
+        updateData.password = await bcrypt.hash(newPassword, 12);
+      }
+
+      // 6️⃣ Update employee
+      await prisma.user.update({
+        where: { id: employeeId },
+        data: updateData,
+      });
+
+      // 7️⃣ Invalidate employee sessions
+      await prisma.refreshToken.deleteMany({
+        where: { userId: employeeId },
+      });
+
+      // 8️⃣ Send email to NEW email
+      if (newEmail) {
+        await sendMail(
+          newEmail,
+          "Your account credentials were updated",
+          `
+        <p>Hello ${employee.firstName},</p>
+        <p>Your account credentials have been updated by an administrator.</p>
+        ${newPassword ? `<p><b>Temporary Password:</b> ${newPassword}</p>` : ""}
+        <p>Please verify your email and change your password after login.</p>
+        `
+        );
+      }
+
+      return res.json({
+        success: true,
+        message: "Employee credentials updated successfully.",
+      });
+    } catch (error) {
+      console.error("❌ adminUpdateEmployeeCredentials error:", error);
       next(error);
     }
   }
