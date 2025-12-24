@@ -516,11 +516,11 @@ class EmployeeController {
       });
 
       // 7️⃣ Invalidate employee sessions
-      await prisma.refreshToken.deleteMany({
-        where: { userId: employeeId },
-      });
+      // await prisma.refreshToken.deleteMany({
+      //   where: { userId: employeeId },
+      // });
 
-      console.log("🔐 Employee sessions invalidated", { employeeId });
+      // console.log("🔐 Employee sessions invalidated", { employeeId });
 
       // 8️⃣ Send email
       if (newEmail) {
