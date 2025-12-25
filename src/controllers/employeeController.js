@@ -1,7 +1,7 @@
-const {PrismaClient} = require("@prisma/client");
+const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
-const {generateRandomPassword} = require("../utils/generatePassword");
-const {sendMail} = require("../utils/emailService");
+const { generateRandomPassword } = require("../utils/generatePassword");
+const { sendMail } = require("../utils/emailService");
 
 const prisma = new PrismaClient();
 
@@ -550,6 +550,86 @@ class EmployeeController {
         message: error.message,
         stack: error.stack,
       });
+      next(error);
+    }
+  }
+
+  // ==========================
+  // ADD MULTIPLE SERVICES
+  // ==========================
+  async addMultipleEmployeeServices(req, res, next) {
+    try {
+      const { employeeId, storeId, serviceIds } = req.body;
+
+      // 1️⃣ Validate employee
+      const employee = await prisma.user.findUnique({
+        where: { id: employeeId },
+      });
+
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "Employee not found.",
+        });
+      }
+
+      // 2️⃣ Validate services
+      const servicesCount = await prisma.service.count({
+        where: { id: { in: serviceIds } },
+      });
+
+      if (servicesCount !== serviceIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: "One or more services are invalid.",
+        });
+      }
+
+      // 3️⃣ Prepare bulk insert data
+      const bulkData = serviceIds.map((serviceId) => ({
+        employeeId,
+        serviceId,
+        storeId,
+      }));
+
+      // 4️⃣ Insert (skip duplicates)
+      const result = await prisma.employeeService.createMany({
+        data: bulkData,
+        skipDuplicates: true, // 🔥 VERY IMPORTANT
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Employee services added successfully.",
+        insertedCount: result.count,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ==========================
+  // GET SERVICES BY EMPLOYEE
+  // ==========================
+  async getServicesByEmployee(req, res, next) {
+    try {
+      const { employeeId } = req.params;
+
+      const services = await prisma.employeeService.findMany({
+        where: { employeeId },
+        include: {
+          service: true,
+          store: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return res.json({
+        success: true,
+        count: services.length,
+        data: services,
+      });
+    } catch (error) {
       next(error);
     }
   }

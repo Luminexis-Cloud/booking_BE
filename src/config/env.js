@@ -12,7 +12,7 @@ const config = {
 
   // JWT Configuration
   JWT_SECRET: process.env.JWT_SECRET || 'change-this-in-production',
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '1m',
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '60m',
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
 
   // CORS Configuration

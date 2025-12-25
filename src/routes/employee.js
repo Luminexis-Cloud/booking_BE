@@ -105,4 +105,28 @@ router.patch(
   employeeController.adminUpdateEmployeeCredentials.bind(employeeController)
 );
 
+
+router.post(
+  "/employee-services",
+  authenticateToken,
+  [
+    body("employeeId").notEmpty().withMessage("employeeId is required"),
+    body("storeId").notEmpty().withMessage("storeId is required"),
+    body("serviceIds")
+      .isArray({ min: 1 })
+      .withMessage("serviceIds must be a non-empty array"),
+  ],
+  handleValidationErrors,
+  employeeController.addMultipleEmployeeServices
+);
+
+
+router.get(
+  "/employee-services/:employeeId",
+  authenticateToken,
+  [param("employeeId").notEmpty()],
+  handleValidationErrors,
+  employeeController.getServicesByEmployee
+);
+
 module.exports = router;
