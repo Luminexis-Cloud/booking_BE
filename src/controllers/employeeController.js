@@ -558,55 +558,44 @@ class EmployeeController {
   // ADD MULTIPLE SERVICES
   // ==========================
   async addMultipleEmployeeServices(req, res, next) {
-    try {
-      const { employeeId, storeId, serviceIds } = req.body;
+  try {
+    const { employeeId, storeId, serviceIds } = req.body;
 
-      // 1️⃣ Validate employee
-      const employee = await prisma.user.findUnique({
-        where: { id: employeeId },
+    // 1️⃣ Validate employee
+    const employee = await prisma.user.findUnique({
+      where: { id: employeeId },
+    });
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
       });
-
-      if (!employee) {
-        return res.status(404).json({
-          success: false,
-          message: "Employee not found.",
-        });
-      }
-
-      // 2️⃣ Validate services
-      // const servicesCount = await prisma.service.count({
-      //   where: { id: { in: serviceIds } },
-      // });
-
-      // if (servicesCount !== serviceIds.length) {
-      //   return res.status(400).json({
-      //     success: false,
-      //     message: "One or more services are invalid.",
-      //   });
-      // }
-
-      // 3️⃣ Prepare bulk insert data
-      const bulkData = serviceIds.map((serviceId) => ({
-        employeeId,
-        serviceId,
-        storeId,
-      }));
-
-      // 4️⃣ Insert (skip duplicates)
-      const result = await prisma.employeeService.createMany({
-        data: bulkData,
-        skipDuplicates: true, // 🔥 VERY IMPORTANT
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "Employee services added successfully.",
-        insertedCount: result.count,
-      });
-    } catch (error) {
-      next(error);
     }
+
+    // 2️⃣ Prepare rows exactly like DB image
+    const rows = serviceIds.map(serviceId => ({
+      employeeId,
+      serviceId,
+      storeId,
+    }));
+
+    // 3️⃣ Insert rows
+    const result = await prisma.employeeService.createMany({
+      data: rows,
+      skipDuplicates: true, // prevents duplicate service assignment
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Employee services added successfully.",
+      insertedCount: result.count,
+    });
+  } catch (error) {
+    next(error);
   }
+}
+
 
   // ==========================
   // GET SERVICES BY EMPLOYEE
