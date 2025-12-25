@@ -250,10 +250,10 @@ const updateClientUnderStoreValidation = [
     .optional()
     .isLength({ min: 1, max: 100 })
     .withMessage('Name must be between 1 and 100 characters'),
-  body('phone')
-    .optional()
-    .matches(/^\+?[1-9]\d{1,14}$/)
-    .withMessage('Phone must be a valid phone number'),
+  body("phone")
+  .optional()
+  .matches(/^(?:\+?\d{1,15}|0\d{1,14})$/)
+  .withMessage('Phone must be a valid phone number'),
   body('email')
     .optional()
     .isEmail()
