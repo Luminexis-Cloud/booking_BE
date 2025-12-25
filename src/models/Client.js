@@ -21,7 +21,7 @@ class Client {
     }
 
     // Basic phone number validation (adjust regex as needed)
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    const phoneRegex = /^(?:\+?\d{1,15}|0\d{1,14})$/;
     if (!phoneRegex.test(phone)) {
       throw new Error("Invalid phone number format");
     }
