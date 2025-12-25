@@ -559,9 +559,22 @@ class EmployeeController {
   // ==========================
   async addMultipleEmployeeServices(req, res, next) {
   try {
+    console.log("📥 REQUEST BODY:", req.body);
+
     const { employeeId, storeId, serviceIds } = req.body;
 
-    // 1️⃣ Validate employee
+    console.log("employeeId:", employeeId);
+    console.log("storeId:", storeId);
+    console.log("serviceIds:", serviceIds);
+
+    if (!Array.isArray(serviceIds)) {
+      return res.status(400).json({
+        success: false,
+        message: "serviceIds must be an array",
+      });
+    }
+
+    // Validate employee
     const employee = await prisma.user.findUnique({
       where: { id: employeeId },
     });
@@ -573,28 +586,30 @@ class EmployeeController {
       });
     }
 
-    // 2️⃣ Prepare rows exactly like DB image
     const rows = serviceIds.map(serviceId => ({
       employeeId,
       serviceId,
       storeId,
     }));
 
-    // 3️⃣ Insert rows
+    console.log("ROWS TO INSERT:", rows);
+
     const result = await prisma.employeeService.createMany({
       data: rows,
-      skipDuplicates: true, // prevents duplicate service assignment
+      skipDuplicates: true,
     });
 
     return res.status(201).json({
       success: true,
-      message: "Employee services added successfully.",
       insertedCount: result.count,
     });
+
   } catch (error) {
-    next(error);
+    console.error("❌ ERROR IN addMultipleEmployeeServices:", error);
+    next(error); // IMPORTANT
   }
 }
+
 
 
   // ==========================
