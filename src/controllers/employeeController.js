@@ -574,16 +574,16 @@ class EmployeeController {
       }
 
       // 2️⃣ Validate services
-      const servicesCount = await prisma.service.count({
-        where: { id: { in: serviceIds } },
-      });
+      // const servicesCount = await prisma.service.count({
+      //   where: { id: { in: serviceIds } },
+      // });
 
-      if (servicesCount !== serviceIds.length) {
-        return res.status(400).json({
-          success: false,
-          message: "One or more services are invalid.",
-        });
-      }
+      // if (servicesCount !== serviceIds.length) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: "One or more services are invalid.",
+      //   });
+      // }
 
       // 3️⃣ Prepare bulk insert data
       const bulkData = serviceIds.map((serviceId) => ({
