@@ -1,7 +1,7 @@
-const {PrismaClient} = require("@prisma/client");
+const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
-const {generateRandomPassword} = require("../utils/generatePassword");
-const {sendMail} = require("../utils/emailService");
+const { generateRandomPassword } = require("../utils/generatePassword");
+const { sendMail } = require("../utils/emailService");
 
 const prisma = new PrismaClient();
 
@@ -554,29 +554,32 @@ class EmployeeController {
     }
   }
 
-   // ==========================
+  // ==========================
   // ADD MULTIPLE SERVICES
   // ==========================
   async addMultipleEmployeeServices(req, res, next) {
     try {
-      console.log("📥 REQUEST BODY:", req.body);
-
       const { employeeId, storeId, serviceIds } = req.body;
 
-      console.log("employeeId:", employeeId);
-      console.log("storeId:", storeId);
-      console.log("serviceIds:", serviceIds);
+      console.log("📥 REQUEST BODY:", req.body);
 
-      if (!Array.isArray(serviceIds)) {
+      // 1️⃣ Validate input
+      if (
+        !employeeId ||
+        !storeId ||
+        !Array.isArray(serviceIds) ||
+        serviceIds.length === 0
+      ) {
         return res.status(400).json({
           success: false,
-          message: "serviceIds must be an array",
+          message: "employeeId, storeId and serviceIds[] are required.",
         });
       }
 
-      // Validate employee
+      // 2️⃣ Validate employee
       const employee = await prisma.user.findUnique({
         where: { id: employeeId },
+        select: { id: true },
       });
 
       if (!employee) {
@@ -586,7 +589,35 @@ class EmployeeController {
         });
       }
 
-      const rows = serviceIds.map((serviceId) => ({
+      // 3️⃣ 🔥 VALIDATE SERVICES (THIS PREVENTS FK ERROR)
+      const services = await prisma.service.findMany({
+        where: {
+          id: { in: serviceIds },
+          storeId, // 🔥 VERY IMPORTANT
+          isActive: true, // 🔥 recommended
+        },
+        select: { id: true },
+      });
+
+      const validServiceIds = services.map((s) => s.id);
+      const invalidServiceIds = serviceIds.filter(
+        (id) => !validServiceIds.includes(id)
+      );
+
+      // 4️⃣ If any invalid → STOP
+      if (invalidServiceIds.length > 0) {
+        console.warn("🚫 Invalid serviceIds detected:", invalidServiceIds);
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "Some serviceIds are invalid or do not belong to this store.",
+          invalidServiceIds,
+        });
+      }
+
+      // 5️⃣ Prepare rows
+      const rows = validServiceIds.map((serviceId) => ({
         employeeId,
         serviceId,
         storeId,
@@ -594,6 +625,7 @@ class EmployeeController {
 
       console.log("ROWS TO INSERT:", rows);
 
+      // 6️⃣ Insert safely
       const result = await prisma.employeeService.createMany({
         data: rows,
         skipDuplicates: true,
@@ -601,11 +633,23 @@ class EmployeeController {
 
       return res.status(201).json({
         success: true,
+        message:
+          result.count > 0
+            ? "Employee services added successfully."
+            : "No new services were added (duplicates skipped).",
         insertedCount: result.count,
       });
     } catch (error) {
-      console.error("❌ ERROR IN addEmployeeServices:", error);
-      next(error);
+      console.error("❌ ERROR IN addMultipleEmployeeServices:", {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to add employee services.",
+      });
     }
   }
 
