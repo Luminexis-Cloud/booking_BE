@@ -604,8 +604,8 @@ class EmployeeController {
         insertedCount: result.count,
       });
     } catch (error) {
-      console.error("❌ ERROR IN addMultipleEmployeeServices:", error);
-      next(error); // IMPORTANT
+      console.error("❌ ERROR IN addEmployeeServices:", error);
+      next(error);
     }
   }
 
