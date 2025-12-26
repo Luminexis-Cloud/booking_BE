@@ -1,7 +1,7 @@
-const { PrismaClient } = require("@prisma/client");
+const {PrismaClient} = require("@prisma/client");
 const bcrypt = require("bcryptjs");
-const { generateRandomPassword } = require("../utils/generatePassword");
-const { sendMail } = require("../utils/emailService");
+const {generateRandomPassword} = require("../utils/generatePassword");
+const {sendMail} = require("../utils/emailService");
 
 const prisma = new PrismaClient();
 
@@ -352,120 +352,209 @@ class EmployeeController {
     }
   }
 
-  async addMultipleEmployeeServices(req, res, next) {
-    const requestId = `EMP-SVC-${Date.now()}`;
-
+  async adminUpdateEmployeeCredentials(req, res, next) {
     try {
-      const { employeeId, storeId, serviceIds } = req.body;
+      const { employeeId } = req.params;
+      const { companyId, newEmail, newPassword, adminCurrentPassword } =
+        req.body;
+      const adminUserId = req.user.userId;
 
-      console.info(`[${requestId}] 📥 Request received`, {
+      console.log("📥 Admin credential update request", {
+        adminUserId,
         employeeId,
-        storeId,
-        serviceIdsCount: Array.isArray(serviceIds) ? serviceIds.length : 0,
+        companyId,
+        updateEmail: !!newEmail,
+        updatePassword: !!newPassword,
       });
 
-      // 0️⃣ Validate input
-      if (
-        !employeeId ||
-        !storeId ||
-        !Array.isArray(serviceIds) ||
-        serviceIds.length === 0
-      ) {
-        console.warn(`[${requestId}] ⚠️ Invalid request body`, req.body);
+      if (!adminCurrentPassword) {
+        console.warn("⚠️ Missing adminCurrentPassword", { adminUserId });
         return res.status(400).json({
           success: false,
-          message: "employeeId, storeId and serviceIds[] are required.",
+          message: "Admin current password is required.",
         });
       }
 
-      // 1️⃣ Validate employee
-      const employee = await prisma.user.findUnique({
-        where: { id: employeeId },
-        select: { id: true },
+      if (!companyId) {
+        console.warn("⚠️ Missing companyId", { adminUserId });
+        return res.status(400).json({
+          success: false,
+          message: "companyId is required.",
+        });
+      }
+
+      if (!newEmail && !newPassword) {
+        console.warn("⚠️ No update fields provided", { adminUserId });
+        return res.status(400).json({
+          success: false,
+          message: "New email or new password is required.",
+        });
+      }
+
+      // 1️⃣ Verify admin
+      const admin = await prisma.user.findFirst({
+        where: {
+          id: adminUserId,
+          companyId,
+          isActive: true,
+        },
+        include: {
+          role: {
+            include: {
+              rolePermissions: {
+                include: { permission: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!admin) {
+        console.warn("🚫 Unauthorized admin access attempt", {
+          adminUserId,
+          companyId,
+        });
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized access.",
+        });
+      }
+
+      // 2️⃣ Verify admin password
+      const isAdminPasswordValid = await bcrypt.compare(
+        adminCurrentPassword,
+        admin.password
+      );
+
+      if (!isAdminPasswordValid) {
+        console.warn("🚫 Invalid admin password attempt", {
+          adminUserId,
+          companyId,
+        });
+        return res.status(401).json({
+          success: false,
+          message: "Invalid admin password.",
+        });
+      }
+
+      console.log("✅ Admin authenticated", {
+        adminUserId,
+        companyId,
+      });
+
+      // 3️⃣ Fetch employee
+      const employee = await prisma.user.findFirst({
+        where: {
+          id: employeeId,
+          companyId,
+        },
       });
 
       if (!employee) {
-        console.warn(`[${requestId}] 🚫 Employee not found`, { employeeId });
+        console.info("ℹ️ Employee not found", {
+          employeeId,
+          companyId,
+        });
         return res.status(404).json({
           success: false,
-          message: "Employee not found.",
+          message: "Employee not found in this company.",
         });
       }
 
-      console.info(`[${requestId}] ✅ Employee validated`);
+      const updateData = {};
 
-      // 2️⃣ Validate services (prevents FK crash)
-      const services = await prisma.service.findMany({
-        where: {
-          id: { in: serviceIds },
-          storeId,
-          isActive: true,
-        },
-        select: { id: true },
-      });
-
-      const validServiceIds = services.map((s) => s.id);
-      const invalidServiceIds = serviceIds.filter(
-        (id) => !validServiceIds.includes(id)
-      );
-
-      if (invalidServiceIds.length > 0) {
-        console.warn(`[${requestId}] 🚫 Invalid services detected`, {
-          invalidServiceIds,
+      // 4️⃣ Email update
+      if (newEmail) {
+        const emailExists = await prisma.user.findUnique({
+          where: { email: newEmail },
         });
 
-        return res.status(400).json({
-          success: false,
-          message: "Some services are invalid or do not belong to this store.",
-          invalidServiceIds,
-        });
+        if (emailExists && emailExists.id === employeeId) {
+          console.info("ℹ️ Email already in use", {
+            newEmail,
+            employeeId,
+          });
+          return res.status(409).json({
+            success: false,
+            message: "Email already in use.",
+          });
+        }
+
+        updateData.email = newEmail;
+        updateData.isVerified = false;
+        updateData.isActive = false;
       }
 
-      console.info(`[${requestId}] ✅ Services validated`, {
-        validServiceCount: validServiceIds.length,
+      // 5️⃣ Password update
+      if (newPassword) {
+        if (newPassword.length < 8) {
+          console.warn("⚠️ Weak password attempt", {
+            adminUserId,
+            employeeId,
+          });
+          return res.status(400).json({
+            success: false,
+            message: "Password must be at least 8 characters.",
+          });
+        }
+
+        updateData.password = await bcrypt.hash(newPassword, 12);
+      }
+
+      // 6️⃣ Update employee
+      await prisma.user.update({
+        where: { id: employeeId },
+        data: updateData,
       });
 
-      // 3️⃣ Prepare rows
-      const rows = validServiceIds.map((serviceId) => ({
+      console.log("✅ Employee credentials updated", {
+        adminUserId,
         employeeId,
-        serviceId,
-        storeId,
-      }));
-
-      // 4️⃣ Insert rows
-      const result = await prisma.employeeService.createMany({
-        data: rows,
-        skipDuplicates: true,
+        companyId,
+        updatedEmail: !!newEmail,
+        updatedPassword: !!newPassword,
       });
 
-      console.info(`[${requestId}] ✅ Employee services inserted`, {
-        insertedCount: result.count,
-      });
+      // 7️⃣ Invalidate employee sessions
+      // await prisma.refreshToken.deleteMany({
+      //   where: { userId: employeeId },
+      // });
 
-      return res.status(201).json({
+      // console.log("🔐 Employee sessions invalidated", { employeeId });
+
+      // 8️⃣ Send email
+      if (newEmail) {
+        await sendMail(
+          newEmail,
+          "Your account credentials were updated",
+          `
+          <p>Hello ${employee.firstName},</p>
+          <p>Your account credentials have been updated by an administrator.</p>
+          ${newPassword ? `<p><b>Temporary Password:</b> ${newPassword}</p>` : ""}
+          <p>Please verify your email and change your password after login.</p>
+        `
+        );
+
+        console.log("📧 Notification email sent", {
+          employeeId,
+          newEmail,
+        });
+      }
+
+      return res.json({
         success: true,
-        message:
-          result.count > 0
-            ? "Employee services added successfully."
-            : "No new services were added (duplicates skipped).",
-        insertedCount: result.count,
-        totalRequested: serviceIds.length,
+        message: "Employee credentials updated successfully.",
       });
     } catch (error) {
-      console.error(`[${requestId}] ❌ Unexpected error`, {
+      console.error("❌ adminUpdateEmployeeCredentials error", {
         message: error.message,
-        code: error.code,
         stack: error.stack,
       });
-
-      return res.status(500).json({
-        success: false,
-        message: "Failed to add employee services. Please try again later.",
-      });
+      next(error);
     }
   }
 
-  // ==========================
+   // ==========================
   // ADD MULTIPLE SERVICES
   // ==========================
   async addMultipleEmployeeServices(req, res, next) {
