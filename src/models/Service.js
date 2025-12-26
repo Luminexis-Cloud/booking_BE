@@ -488,6 +488,7 @@ class Service {
         store: { managerId: userId },
       },
       select: {
+        id: true,
         categoryId: true,
         name: true,
         description: true,
