@@ -117,7 +117,7 @@ router.post(
       .withMessage("serviceIds must be a non-empty array"),
   ],
   handleValidationErrors,
-  employeeController.addMultipleEmployeeServices
+  employeeController.addMultipleEmployeeServices.bind(employeeController)
 );
 
 
@@ -126,7 +126,7 @@ router.get(
   authenticateToken,
   [param("employeeId").notEmpty()],
   handleValidationErrors,
-  employeeController.getServicesByEmployee
+  employeeController.getServicesByEmployee.bind(employeeController)
 );
 
 module.exports = router;
