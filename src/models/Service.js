@@ -494,6 +494,7 @@ class Service {
         createdAt: true,
         services: {
           select: {
+            id: true,
             serviceId: true,
             name: true,
             description: true,
