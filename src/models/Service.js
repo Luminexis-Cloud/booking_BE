@@ -485,7 +485,6 @@ class Service {
     const categories = await prisma.category.findMany({
       where: {
         storeId,
-        store: { managerId: userId },
       },
       select: {
         id: true,
