@@ -372,7 +372,7 @@ class AuthController {
     store:[v.target.store],
   }));
 
-  console.log("👁 Visibility Users:", visibilityUsers);
+  console.log("👁 Visibility Users:", visibilityUsers.length);
 
   const permissions = user.role.rolePermissions.map((p) => ({
     id: p.permission.id,

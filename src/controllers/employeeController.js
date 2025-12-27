@@ -126,6 +126,7 @@ class EmployeeController {
   async listEmployees(req, res, next) {
     try {
       const companyId = req.query.companyId || req.body.companyId;
+      const storeId = req.query.storeId || req.body.storeId;
       const userId = req.user.userId;
 
       console.log(userId);
@@ -136,14 +137,21 @@ class EmployeeController {
           message: "companyId is required.",
         });
 
+      if (!storeId)
+        return res.status(400).json({
+          success: false,
+          message: "storeId is required.",
+        });
+
       const employees = await prisma.user.findMany({
         where: {
           companyId,
+          storeId,
           id: {
             not: userId,
           },
         },
-        include: { role: true, store: true },
+        //include: { role: true, store: true },
         orderBy: { createdAt: "desc" },
       });
 
