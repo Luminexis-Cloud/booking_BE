@@ -678,6 +678,196 @@ class EmployeeController {
       next(error);
     }
   }
+
+  // 🔹 POST – Save schedule
+  async saveSchedule(req, res, next) {
+    try {
+      const { employeeId } = req.params;
+      const { pattern, weeklySchedule } = req.body;
+
+      // 🔴 Basic validations
+      if (!employeeId) {
+        return res.status(400).json({
+          success: false,
+          message: "employeeId is required",
+        });
+      }
+
+      if (!pattern || !Number.isInteger(pattern.repeatEveryWeeks)) {
+        return res.status(400).json({
+          success: false,
+          message: "pattern.repeatEveryWeeks must be a valid number",
+        });
+      }
+
+      if (pattern.repeatEveryWeeks < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "repeatEveryWeeks must be greater than or equal to 1",
+        });
+      }
+
+      if (!Array.isArray(weeklySchedule)) {
+        return res.status(400).json({
+          success: false,
+          message: "weeklySchedule must be an array",
+        });
+      }
+
+      // 🔴 Ensure employee exists
+      const employee = await prisma.user.findUnique({
+        where: { id: employeeId },
+      });
+
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "Employee not found",
+        });
+      }
+
+      // 1️⃣ Replace existing pattern
+      await prisma.employeeSchedulePattern.deleteMany({
+        where: { userId: employeeId },
+      });
+
+      await prisma.employeeSchedulePattern.create({
+        data: {
+          userId: employeeId,
+          repeatEveryWeeks: pattern.repeatEveryWeeks,
+          startsAt: pattern.startsAt ? new Date(pattern.startsAt) : null,
+        },
+      });
+
+      // 2️⃣ Save weekly schedules
+      for (const day of weeklySchedule) {
+        const { dayOfWeek, isEnabled, timeSlots } = day;
+
+        if (typeof dayOfWeek !== "number" || dayOfWeek < 1 || dayOfWeek > 7) {
+          return res.status(400).json({
+            success: false,
+            message: "dayOfWeek must be between 1 and 7",
+          });
+        }
+
+        const schedule = await prisma.employeeWorkingSchedule.upsert({
+          where: {
+            userId_dayOfWeek: {
+              userId: employeeId,
+              dayOfWeek,
+            },
+          },
+          update: { isEnabled: !!isEnabled },
+          create: {
+            userId: employeeId,
+            dayOfWeek,
+            isEnabled: !!isEnabled,
+          },
+        });
+
+        // Replace time slots
+        await prisma.employeeTimeSlot.deleteMany({
+          where: { scheduleId: schedule.id },
+        });
+
+        if (isEnabled && Array.isArray(timeSlots)) {
+          for (const slot of timeSlots) {
+            if (!slot.startTime || !slot.endTime) {
+              return res.status(400).json({
+                success: false,
+                message: "Each timeSlot must have startTime and endTime",
+              });
+            }
+          }
+
+          if (timeSlots.length) {
+            await prisma.employeeTimeSlot.createMany({
+              data: timeSlots.map((slot) => ({
+                scheduleId: schedule.id,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+              })),
+            });
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Employee schedule saved successfully",
+      });
+    } catch (error) {
+      console.error("❌ saveSchedule error:", error);
+      next(error);
+    }
+  }
+
+  // 🔹 GET – Fetch schedule
+  async getSchedule(req, res, next) {
+    try {
+      const { employeeId } = req.params;
+
+      // 🔴 Validate employeeId
+      if (!employeeId) {
+        return res.status(400).json({
+          success: false,
+          message: "employeeId is required",
+        });
+      }
+
+      // 🔴 Ensure employee exists
+      const employee = await prisma.user.findUnique({
+        where: { id: employeeId },
+      });
+
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "Employee not found",
+        });
+      }
+
+      // 1️⃣ Get schedule pattern (number-based)
+      const pattern = await prisma.employeeSchedulePattern.findFirst({
+        where: { userId: employeeId, isActive: true },
+        select: {
+          repeatEveryWeeks: true,
+          startsAt: true,
+        },
+      });
+
+      // 2️⃣ Get weekly schedules
+      const schedules = await prisma.employeeWorkingSchedule.findMany({
+        where: { userId: employeeId },
+        include: { timeSlots: true },
+        orderBy: { dayOfWeek: "asc" },
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          employeeId,
+          pattern: pattern
+            ? {
+                repeatEveryWeeks: pattern.repeatEveryWeeks,
+                startsAt: pattern.startsAt,
+              }
+            : null,
+          weeklySchedule: schedules.map((s) => ({
+            dayOfWeek: s.dayOfWeek,
+            isEnabled: s.isEnabled,
+            timeSlots: s.timeSlots.map((t) => ({
+              startTime: t.startTime,
+              endTime: t.endTime,
+            })),
+          })),
+        },
+      });
+    } catch (error) {
+      console.error("❌ getSchedule error:", error);
+      next(error);
+    }
+  }
 }
 
 module.exports = new EmployeeController();

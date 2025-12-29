@@ -129,4 +129,18 @@ router.get(
   employeeController.getServicesByEmployee
 );
 
+router.post(
+  "/:employeeId/schedule",
+  authenticateToken,
+  [body("employeeId").notEmpty().withMessage("employeeId is required")],
+  employeeController.saveSchedule
+);
+
+router.get(
+  "/:employeeId/schedule",
+  authenticateToken,
+  [body("employeeId").notEmpty().withMessage("employeeId is required")],
+  employeeController.getSchedule
+);
+
 module.exports = router;

@@ -115,7 +115,6 @@
 //   { name: "View reports", module: "Reports", action: "view" },
 // ];
 
-
 //   const createdPermissions = [];
 //   for (const p of permissionsData) {
 //     const perm = await prisma.permission.upsert({
@@ -302,7 +301,6 @@
 //     })
 //     .finally(() => prisma.$disconnect());
 
-
 /**
  * prisma/seed.js
  * Large-scale seed (single file) based on your existing structure:
@@ -331,59 +329,93 @@ const SCALE = {
   STORES_COUNT: 5,
   ADMINS_PER_STORE: 1,
   MANAGERS_PER_STORE: 1,
-  EMPLOYEES_PER_STORE: 15,
-  CLIENTS_PER_STORE: 60,
-  APPOINTMENTS_PER_STORE: 140,
+  EMPLOYEES_PER_STORE: 5,
+  CLIENTS_PER_STORE: 20,
+  APPOINTMENTS_PER_STORE: 20,
 
   CATEGORIES_PER_STORE: 6,
-  SERVICES_PER_CATEGORY: 12,
+  SERVICES_PER_CATEGORY: 5,
 
   // employee expertise: how many services each employee can do
-  SERVICES_PER_EMPLOYEE_MIN: 6,
-  SERVICES_PER_EMPLOYEE_MAX: 14,
+  SERVICES_PER_EMPLOYEE_MIN: 3,
+  SERVICES_PER_EMPLOYEE_MAX: 8,
 };
 
 // =========================
 // DATA POOLS
 // =========================
 const CATEGORY_NAMES = [
-  "Hair Department",
-  "Face Department",
-  "Makeup Department",
-  "Nails Department",
-  "Body Department",
-  "Grooming Department",
-  "Spa Department",
-  "Bridal Department",
-  "Skin Department",
+  "Hair Dept",
+  "Face Dept",
+  "Makeup Dept",
+  "Nails Dept",
+  "Body Dept",
+  "Grooming Dept",
+  "Spa Dept",
+  "Bridal Dept",
+  "Skin Dept",
 ];
 
 const SERVICE_TEMPLATES = [
-  "Basic Service",
-  "Premium Service",
-  "Advanced Treatment",
-  "Luxury Package",
-  "Express Service",
+  "Basic Serv",
+  "Premium Serv",
+  "Advanced Trtment",
+  "Luxury Pkage",
+  "Express Serv",
   "Full Care",
   "Deluxe Session",
   "Therapy",
   "Styling",
-  "Special Treatment",
-  "Signature Service",
+  "Special Trtment",
+  "Signature Serv",
   "Deep Care",
-  "Glow Treatment",
+  "Glow Trtment",
   "Repair Session",
-  "Relax Package",
+  "Relax Pkage",
 ];
 
 const FIRST_NAMES = [
-  "Nouman", "Ali", "Sarah", "Ayesha", "John", "Jane", "Fatima", "Usman", "Ahmed", "Hina",
-  "Bilal", "Hamza", "Zara", "Omar", "Amna", "Danish", "Iqra", "Hassan", "Sana", "Saad",
+  "Nouman",
+  "Ali",
+  "Sarah",
+  "Ayesha",
+  "John",
+  "Jane",
+  "Fatima",
+  "Usman",
+  "Ahmed",
+  "Hina",
+  "Bilal",
+  "Hamza",
+  "Zara",
+  "Omar",
+  "Amna",
+  "Danish",
+  "Iqra",
+  "Hassan",
+  "Sana",
+  "Saad",
 ];
 
 const LAST_NAMES = [
-  "Naveed", "Khan", "Raza", "Smith", "Doe", "Ahmed", "Butt", "Malik", "Shah", "Sheikh",
-  "Chaudhry", "Hussain", "Iqbal", "Ali", "Siddiqui", "Awan", "Qureshi", "Mehmood",
+  "Naveed",
+  "Khan",
+  "Raza",
+  "Smith",
+  "Doe",
+  "Ahmed",
+  "Butt",
+  "Malik",
+  "Shah",
+  "Sheikh",
+  "Chaudhry",
+  "Hussain",
+  "Iqbal",
+  "Ali",
+  "Siddiqui",
+  "Awan",
+  "Qureshi",
+  "Mehmood",
 ];
 
 function randInt(min, max) {
@@ -480,7 +512,11 @@ async function main() {
     { name: "Create appointment", module: "Appointments", action: "add" },
     { name: "Edit appointment", module: "Appointments", action: "edit" },
     { name: "Delete appointment", module: "Appointments", action: "delete" },
-    { name: "View all appointments", module: "Appointments", action: "view_all" },
+    {
+      name: "View all appointments",
+      module: "Appointments",
+      action: "view_all",
+    },
 
     // Services
     { name: "Add or edit services", module: "Services", action: "add_edit" },
@@ -488,7 +524,11 @@ async function main() {
     { name: "View all services", module: "Services", action: "view_all" },
 
     // Categories
-    { name: "Add or edit categories", module: "Categories", action: "add_edit" },
+    {
+      name: "Add or edit categories",
+      module: "Categories",
+      action: "add_edit",
+    },
     { name: "Delete categories", module: "Categories", action: "delete" },
     { name: "View all categories", module: "Categories", action: "view_all" },
 
@@ -540,7 +580,8 @@ async function main() {
     }
 
     const managerAllowed =
-      (p.module === "Appointments" && ["add", "edit", "view_all"].includes(p.action)) ||
+      (p.module === "Appointments" &&
+        ["add", "edit", "view_all"].includes(p.action)) ||
       (p.module === "Clients" && ["view_all"].includes(p.action)) ||
       (p.module === "Reports" && ["view"].includes(p.action)) ||
       (p.module === "Employees" && ["view_all"].includes(p.action));
@@ -599,6 +640,13 @@ async function main() {
       companyId: company.id,
       managerId: superAdmin.id,
       phoneNumber: "+923446984848",
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: superAdmin.id },
+    data: {
+      storeId: mainStore.id, // or storeId
     },
   });
   stores.push(mainStore);
@@ -760,7 +808,8 @@ async function main() {
   // Map managers to employees by storeId
   const employeesByStore = new Map();
   for (const emp of allEmployees) {
-    if (!employeesByStore.has(emp.storeId)) employeesByStore.set(emp.storeId, []);
+    if (!employeesByStore.has(emp.storeId))
+      employeesByStore.set(emp.storeId, []);
     employeesByStore.get(emp.storeId).push(emp);
   }
 
@@ -802,7 +851,10 @@ async function main() {
     const createdServices = [];
     for (const cat of categories) {
       // create services per category
-      const templates = shuffle(SERVICE_TEMPLATES).slice(0, SCALE.SERVICES_PER_CATEGORY);
+      const templates = shuffle(SERVICE_TEMPLATES).slice(
+        0,
+        SCALE.SERVICES_PER_CATEGORY
+      );
       for (const tmpl of templates) {
         const svc = await prisma.service.create({
           data: {
@@ -890,9 +942,9 @@ async function main() {
   console.log("📅 Seeding appointments...");
 
   for (const store of stores) {
-    const employees = (employeesByStore.get(store.id) || []);
-    const clients = (allClientsByStore.get(store.id) || []);
-    const services = (allServicesByStore.get(store.id) || []);
+    const employees = employeesByStore.get(store.id) || [];
+    const clients = allClientsByStore.get(store.id) || [];
+    const services = allServicesByStore.get(store.id) || [];
 
     if (!employees.length || !clients.length || !services.length) continue;
 
@@ -904,7 +956,8 @@ async function main() {
 
     const servicesByEmployee = new Map();
     for (const row of empServices) {
-      if (!servicesByEmployee.has(row.employeeId)) servicesByEmployee.set(row.employeeId, []);
+      if (!servicesByEmployee.has(row.employeeId))
+        servicesByEmployee.set(row.employeeId, []);
       servicesByEmployee.get(row.employeeId).push(row.serviceId);
     }
 

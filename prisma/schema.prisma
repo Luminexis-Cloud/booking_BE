@@ -71,6 +71,8 @@ model User {
   appointments     Appointment[]
   clients          Client[]
   employeeServices EmployeeService[]
+  schedulePattern   EmployeeSchedulePattern?
+  workingSchedules  EmployeeWorkingSchedule[]
 
   @@map("users")
 }
@@ -362,4 +364,64 @@ model EmployeeService {
 
   @@unique([employeeId, serviceId])
   @@map("employee_services")
+}
+
+//////////////////////////////////////
+// ENUMS
+//////////////////////////////////////
+
+enum ScheduleMode {
+  EVERY_WEEK
+  RECURRING
+}
+
+//////////////////////////////////////
+// SCHEDULE PATTERN (WHEN & HOW OFTEN)
+//////////////////////////////////////
+
+model EmployeeSchedulePattern {
+  id          String       @id @default(cuid())
+  userId      String       @unique
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  repeatEveryWeeks  Int      // 1 = every week, 4 = every 4 weeks
+  startsAt    DateTime?    // required for RECURRING
+
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+}
+
+//////////////////////////////////////
+// WEEKLY WORKING SCHEDULE (WHAT DAYS)
+//////////////////////////////////////
+
+model EmployeeWorkingSchedule {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dayOfWeek Int      // 1 = Monday, 7 = Sunday
+  isEnabled Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  timeSlots EmployeeTimeSlot[]
+
+  @@unique([userId, dayOfWeek])
+}
+
+//////////////////////////////////////
+// TIME SLOTS (WHAT HOURS)
+//////////////////////////////////////
+
+model EmployeeTimeSlot {
+  id          String   @id @default(cuid())
+  scheduleId  String
+  schedule    EmployeeWorkingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  startTime   String   // "09:00"
+  endTime     String   // "17:30"
+
+  createdAt   DateTime @default(now())
 }
