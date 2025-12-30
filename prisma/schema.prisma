@@ -400,6 +400,8 @@ model EmployeeWorkingSchedule {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  weekOffset Int     // 1..repeatEveryWeeks (e.g. 1–4)
+
   dayOfWeek Int      // 1 = Monday, 7 = Sunday
   isEnabled Boolean  @default(true)
 
@@ -408,8 +410,9 @@ model EmployeeWorkingSchedule {
 
   timeSlots EmployeeTimeSlot[]
 
-  @@unique([userId, dayOfWeek])
+  @@unique([userId, weekOffset, dayOfWeek])
 }
+
 
 //////////////////////////////////////
 // TIME SLOTS (WHAT HOURS)

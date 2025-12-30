@@ -683,14 +683,13 @@ class EmployeeController {
   async saveSchedule(req, res, next) {
     try {
       const { employeeId } = req.params;
-      const { pattern, weeklySchedule } = req.body;
+      const { pattern, weeks } = req.body;
 
-      // 🔴 Basic validations
+      // 🔴 Validations
       if (!employeeId) {
-        return res.status(400).json({
-          success: false,
-          message: "employeeId is required",
-        });
+        return res
+          .status(400)
+          .json({ success: false, message: "employeeId is required" });
       }
 
       if (!pattern || !Number.isInteger(pattern.repeatEveryWeeks)) {
@@ -700,17 +699,10 @@ class EmployeeController {
         });
       }
 
-      if (pattern.repeatEveryWeeks < 1) {
+      if (!Array.isArray(weeks)) {
         return res.status(400).json({
           success: false,
-          message: "repeatEveryWeeks must be greater than or equal to 1",
-        });
-      }
-
-      if (!Array.isArray(weeklySchedule)) {
-        return res.status(400).json({
-          success: false,
-          message: "weeklySchedule must be an array",
+          message: "weeks must be an array",
         });
       }
 
@@ -726,7 +718,7 @@ class EmployeeController {
         });
       }
 
-      // 1️⃣ Replace existing pattern
+      // 1️⃣ Replace pattern
       await prisma.employeeSchedulePattern.deleteMany({
         where: { userId: employeeId },
       });
@@ -739,48 +731,51 @@ class EmployeeController {
         },
       });
 
-      // 2️⃣ Save weekly schedules
-      for (const day of weeklySchedule) {
-        const { dayOfWeek, isEnabled, timeSlots } = day;
+      // 2️⃣ Clear old schedules
+      await prisma.employeeWorkingSchedule.deleteMany({
+        where: { userId: employeeId },
+      });
 
-        if (typeof dayOfWeek !== "number" || dayOfWeek < 1 || dayOfWeek > 7) {
+      // 3️⃣ Save weeks
+      for (const week of weeks) {
+        const { weekOffset, weeklySchedule } = week;
+
+        if (!Number.isInteger(weekOffset)) {
           return res.status(400).json({
             success: false,
-            message: "dayOfWeek must be between 1 and 7",
+            message: "weekOffset must be a number",
           });
         }
 
-        const schedule = await prisma.employeeWorkingSchedule.upsert({
-          where: {
-            userId_dayOfWeek: {
-              userId: employeeId,
-              dayOfWeek,
-            },
-          },
-          update: { isEnabled: !!isEnabled },
-          create: {
-            userId: employeeId,
-            dayOfWeek,
-            isEnabled: !!isEnabled,
-          },
-        });
+        for (const day of weeklySchedule) {
+          const { dayOfWeek, isEnabled, timeSlots } = day;
 
-        // Replace time slots
-        await prisma.employeeTimeSlot.deleteMany({
-          where: { scheduleId: schedule.id },
-        });
-
-        if (isEnabled && Array.isArray(timeSlots)) {
-          for (const slot of timeSlots) {
-            if (!slot.startTime || !slot.endTime) {
-              return res.status(400).json({
-                success: false,
-                message: "Each timeSlot must have startTime and endTime",
-              });
-            }
+          if (dayOfWeek < 1 || dayOfWeek > 7) {
+            return res.status(400).json({
+              success: false,
+              message: "dayOfWeek must be between 1 and 7",
+            });
           }
 
-          if (timeSlots.length) {
+          const schedule = await prisma.employeeWorkingSchedule.create({
+            data: {
+              userId: employeeId,
+              weekOffset,
+              dayOfWeek,
+              isEnabled: !!isEnabled,
+            },
+          });
+
+          if (isEnabled && Array.isArray(timeSlots) && timeSlots.length) {
+            for (const slot of timeSlots) {
+              if (!slot.startTime || !slot.endTime) {
+                return res.status(400).json({
+                  success: false,
+                  message: "Each timeSlot must have startTime and endTime",
+                });
+              }
+            }
+
             await prisma.employeeTimeSlot.createMany({
               data: timeSlots.map((slot) => ({
                 scheduleId: schedule.id,
@@ -807,7 +802,6 @@ class EmployeeController {
     try {
       const { employeeId } = req.params;
 
-      // 🔴 Validate employeeId
       if (!employeeId) {
         return res.status(400).json({
           success: false,
@@ -815,7 +809,6 @@ class EmployeeController {
         });
       }
 
-      // 🔴 Ensure employee exists
       const employee = await prisma.user.findUnique({
         where: { id: employeeId },
       });
@@ -827,7 +820,7 @@ class EmployeeController {
         });
       }
 
-      // 1️⃣ Get schedule pattern (number-based)
+      // 1️⃣ Pattern
       const pattern = await prisma.employeeSchedulePattern.findFirst({
         where: { userId: employeeId, isActive: true },
         select: {
@@ -836,24 +829,27 @@ class EmployeeController {
         },
       });
 
-      // 2️⃣ Get weekly schedules
+      if (!pattern) {
+        return res.status(200).json({ success: true, data: null });
+      }
+
+      // 2️⃣ Schedules
       const schedules = await prisma.employeeWorkingSchedule.findMany({
         where: { userId: employeeId },
         include: { timeSlots: true },
-        orderBy: { dayOfWeek: "asc" },
+        orderBy: [{ weekOffset: "asc" }, { dayOfWeek: "asc" }],
       });
 
-      return res.status(200).json({
-        success: true,
-        data: {
-          employeeId,
-          pattern: pattern
-            ? {
-                repeatEveryWeeks: pattern.repeatEveryWeeks,
-                startsAt: pattern.startsAt,
-              }
-            : null,
-          weeklySchedule: schedules.map((s) => ({
+      // 3️⃣ Build weeks
+      const weeks = [];
+
+      for (let i = 1; i <= pattern.repeatEveryWeeks; i++) {
+        const weekSchedules = schedules.filter((s) => s.weekOffset === i);
+
+        weeks.push({
+          weekOffset: i,
+          isActive: weekSchedules.length > 0,
+          weeklySchedule: weekSchedules.map((s) => ({
             dayOfWeek: s.dayOfWeek,
             isEnabled: s.isEnabled,
             timeSlots: s.timeSlots.map((t) => ({
@@ -861,6 +857,18 @@ class EmployeeController {
               endTime: t.endTime,
             })),
           })),
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          employeeId,
+          pattern: {
+            repeatEveryWeeks: pattern.repeatEveryWeeks,
+            startsAt: pattern.startsAt,
+          },
+          weeks,
         },
       });
     } catch (error) {
