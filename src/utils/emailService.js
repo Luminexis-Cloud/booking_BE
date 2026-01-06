@@ -1,12 +1,15 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: `email-smtp.${process.env.SES_REGION}.amazonaws.com`,
+  port: 587,
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.SES_SMTP_USER,
+    pass: process.env.SES_SMTP_PASS,
   },
 });
+
 
 exports.sendMail = async (to, subject, html) => {
   const info = await transporter.sendMail({
