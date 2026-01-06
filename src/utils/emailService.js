@@ -18,6 +18,7 @@ exports.sendMail = async (to, subject, html) => {
     subject,
     html,
   });
-
+  console.log(info);
+  
   return info; // 👈 REQUIRED
 };
