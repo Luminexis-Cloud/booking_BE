@@ -202,36 +202,74 @@ class AuthController {
 
 
   async sendSignupOtp(req, res, next) {
-    try {
-      const { email } = req.body;
+  const requestId = Date.now(); // simple request trace id
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  try {
+    const { email } = req.body;
 
-      // Send OTP via email
-      await sendMail(
-        email,
-        "Your OTP Code",
-        `
-                <h3>Your Verification Code</h3>
-                <p>Your OTP code is: <b>${otp}</b></p>
-                <p>This code will expire in 5 minutes.</p>
-            `
-      );
-
-      // Save OTP to DB
-      await prisma.otpCode.create({
-        data: {
-          code: otp,
-          email,
-          expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        },
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
       });
-
-      return res.json({ success: true, message: "OTP sent to email" });
-    } catch (err) {
-      next(err);
     }
+
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    console.log(`[${requestId}] Generating OTP for ${email}`);
+
+    // Send OTP email
+    const mailInfo = await sendMail(
+      email,
+      "Your OTP Code",
+      `
+        <h3>Your Verification Code</h3>
+        <p>Your OTP code is: <b>${otp}</b></p>
+        <p>This code will expire in 5 minutes.</p>
+      `
+    );
+
+    console.log(
+      `[${requestId}] OTP email sent to ${email}`,
+      mailInfo?.messageId
+    );
+
+    // Save OTP in DB
+    await prisma.otpCode.create({
+      data: {
+        code: otp,
+        email,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      },
+    });
+
+    console.log(`[${requestId}] OTP saved in DB for ${email}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent to email successfully",
+    });
+
+  } catch (err) {
+    console.error(`[${requestId}] sendSignupOtp ERROR`, err);
+
+    // SMTP / email-specific error
+    if (err.code === "EAUTH" || err.code === "ESOCKET") {
+      return res.status(500).json({
+        success: false,
+        message: "Email service temporarily unavailable. Try again later.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send OTP",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
   }
+}
+
 
   async verifySignupOtp(req, res, next) {
     try {
