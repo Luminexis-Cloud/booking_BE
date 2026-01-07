@@ -984,6 +984,7 @@ async function main() {
         data: {
           title: `Appointment ${i}`,
           description: `ServiceId: ${serviceId}`,
+          date: new Date(startTime.toDateString()),
           startTime,
           endTime,
           type: "general",
