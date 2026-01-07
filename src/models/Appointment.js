@@ -1,5 +1,6 @@
 // Custom Appointment Model - Business Logic Layer
 const { PrismaClient } = require("@prisma/client");
+const { client } = require("../services/twilioService");
 
 const prisma = new PrismaClient();
 
@@ -116,6 +117,20 @@ class Appointment {
       start.getDate()
     );
 
+    if (clientId) {
+      const client = await prisma.client.findUnique({
+        where: { id: clientId },
+      });
+
+      if (!client) {
+        const err = new Error(
+          "Invalid clientId. Use Client.id, not Client.clientId"
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
@@ -139,7 +154,7 @@ class Appointment {
 
         storeId,
         userId: employeeId, // ✅ THIS IS THE FIX
-        clientId,
+        clientId: client.id,
       },
     });
 
