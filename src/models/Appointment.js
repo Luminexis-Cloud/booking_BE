@@ -1,183 +1,203 @@
 // Custom Appointment Model - Business Logic Layer
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
 class Appointment {
-  // Business validation rules
+  /* ───────────────────────────── */
+  /* VALIDATIONS */
+  /* ───────────────────────────── */
   static validateAppointmentTime(startTime, endTime) {
     const start = new Date(startTime);
     const end = new Date(endTime);
     const now = new Date();
 
     if (start <= now) {
-      throw new Error('Appointment cannot be scheduled in the past');
+      throw new Error("Appointment cannot be scheduled in the past");
     }
 
     if (end <= start) {
-      throw new Error('End time must be after start time');
+      throw new Error("End time must be after start time");
     }
 
-    // Check if appointment is within business hours (9 AM - 6 PM)
     const startHour = start.getHours();
     const endHour = end.getHours();
-    
+
     if (startHour < 9 || endHour > 18) {
-      throw new Error('Appointments can only be scheduled between 9 AM and 6 PM');
+      throw new Error(
+        "Appointments can only be scheduled between 9 AM and 6 PM"
+      );
     }
 
     return true;
   }
 
   static validateAppointmentDuration(startTime, endTime) {
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    const duration = (end - start) / (1000 * 60); // duration in minutes
+    const duration = (new Date(endTime) - new Date(startTime)) / 60000;
 
     if (duration < 30) {
-      throw new Error('Appointment must be at least 30 minutes long');
+      throw new Error("Appointment must be at least 30 minutes long");
     }
 
     if (duration > 120) {
-      throw new Error('Appointment cannot be longer than 2 hours');
+      throw new Error("Appointment cannot be longer than 2 hours");
     }
 
     return true;
   }
 
-  // Business logic for creating appointment
+  /* ───────────────────────────── */
+  /* CREATE */
+  /* ───────────────────────────── */
   static async createAppointment(userId, appointmentData) {
-    const { title, description, startTime, endTime, type } = appointmentData;
+    const {
+      title,
+      notes,
+      date,
+      startTime,
+      endTime,
+      color,
+      sendSms,
+      smsMessage,
+      isRecurring,
+      recurrence,
+      recurrenceConfig,
+      downPayment,
+      storeId,
+      clientId,
+      services = [],
+    } = appointmentData;
 
-    // Validate using business rules
+    // Business rules
     this.validateAppointmentTime(startTime, endTime);
     this.validateAppointmentDuration(startTime, endTime);
 
-    // Check for conflicts (business rule)
-    const conflictingAppointment = await prisma.appointment.findFirst({
+    // Conflict check (same user)
+    const conflict = await prisma.appointment.findFirst({
       where: {
         userId,
         OR: [
           {
-            startTime: {
-              lte: new Date(startTime),
-            },
-            endTime: {
-              gt: new Date(startTime),
-            },
+            startTime: { lte: new Date(startTime) },
+            endTime: { gt: new Date(startTime) },
           },
           {
-            startTime: {
-              lt: new Date(endTime),
-            },
-            endTime: {
-              gte: new Date(endTime),
-            },
+            startTime: { lt: new Date(endTime) },
+            endTime: { gte: new Date(endTime) },
           },
         ],
       },
     });
 
-    if (conflictingAppointment) {
-      throw new Error('You already have an appointment at this time');
+    if (conflict) {
+      throw new Error("You already have an appointment at this time");
     }
 
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
         title,
-        description,
+        notes,
+
+        date: new Date(date),
         startTime: new Date(startTime),
         endTime: new Date(endTime),
-        type,
+
+        color: color || "gold",
+
+        sendSms: !!sendSms,
+        smsMessage: sendSms ? smsMessage : null,
+
+        isRecurring: !!isRecurring,
+        recurrence: isRecurring ? recurrence : null,
+        recurrenceConfig: isRecurring ? recurrenceConfig : null,
+
+        downPayment: downPayment ?? null,
+
+        storeId,
         userId,
+        clientId,
       },
     });
+
+    // Create AppointmentService relations
+    if (services.length) {
+      await prisma.appointmentService.createMany({
+        data: services.map((s) => ({
+          appointmentId: appointment.id,
+          serviceId: s.serviceId,
+        })),
+        skipDuplicates: true,
+      });
+    }
 
     return appointment;
   }
 
-  // Business logic for getting user appointments
+  /* ───────────────────────────── */
+  /* GET */
+  /* ───────────────────────────── */
   static async getUserAppointments(userId, date) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const appointments = await prisma.appointment.findMany({
+    return prisma.appointment.findMany({
       where: {
         userId,
-        startTime: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
+        date: new Date(date),
       },
-      orderBy: {
-        startTime: 'asc',
+      orderBy: { startTime: "asc" },
+      include: {
+        services: { include: { service: true } },
       },
     });
-
-    return appointments;
   }
 
-  // Business logic for updating appointment
+  /* ───────────────────────────── */
+  /* UPDATE */
+  /* ───────────────────────────── */
   static async updateAppointment(appointmentId, userId, updateData) {
-    // Check if appointment exists and belongs to user
     const appointment = await prisma.appointment.findFirst({
-      where: {
-        id: appointmentId,
-        userId,
-      },
+      where: { id: appointmentId, userId },
     });
 
     if (!appointment) {
-      throw new Error('Appointment not found or you do not have permission to update it');
+      throw new Error("Appointment not found or access denied");
     }
 
-    // Validate if updating time
     if (updateData.startTime || updateData.endTime) {
-      const startTime = updateData.startTime || appointment.startTime;
-      const endTime = updateData.endTime || appointment.endTime;
-      
-      this.validateAppointmentTime(startTime, endTime);
-      this.validateAppointmentDuration(startTime, endTime);
+      this.validateAppointmentTime(
+        updateData.startTime || appointment.startTime,
+        updateData.endTime || appointment.endTime
+      );
+      this.validateAppointmentDuration(
+        updateData.startTime || appointment.startTime,
+        updateData.endTime || appointment.endTime
+      );
     }
 
-    // Update appointment
-    const updatedAppointment = await prisma.appointment.update({
+    return prisma.appointment.update({
       where: { id: appointmentId },
       data: updateData,
     });
-
-    return updatedAppointment;
   }
 
-  // Business logic for deleting appointment
+  /* ───────────────────────────── */
+  /* DELETE */
+  /* ───────────────────────────── */
   static async deleteAppointment(appointmentId, userId) {
-    // Check if appointment exists and belongs to user
     const appointment = await prisma.appointment.findFirst({
-      where: {
-        id: appointmentId,
-        userId,
-      },
+      where: { id: appointmentId, userId },
     });
 
     if (!appointment) {
-      throw new Error('Appointment not found or you do not have permission to delete it');
+      throw new Error("Appointment not found or access denied");
     }
 
-    // Check if appointment is in the past
     if (new Date(appointment.startTime) < new Date()) {
-      throw new Error('Cannot delete past appointments');
+      throw new Error("Cannot delete past appointments");
     }
 
-    // Delete appointment
-    await prisma.appointment.delete({
-      where: { id: appointmentId },
-    });
+    await prisma.appointment.delete({ where: { id: appointmentId } });
 
-    return { message: 'Appointment deleted successfully' };
+    return { message: "Appointment deleted successfully" };
   }
 }
 
