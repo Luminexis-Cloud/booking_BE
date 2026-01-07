@@ -20,7 +20,7 @@ const allowedDays = [
 /* ───────────────────────────────────────────── */
 /* CREATE APPOINTMENT */
 /* ───────────────────────────────────────────── */
-export const createAppointmentValidation = [
+ const createAppointmentValidation = [
 
   body("title")
     .notEmpty().withMessage("Title is required")
@@ -112,7 +112,7 @@ export const createAppointmentValidation = [
 /* ───────────────────────────────────────────── */
 /* UPDATE APPOINTMENT */
 /* ───────────────────────────────────────────── */
-export const updateAppointmentValidation = [
+ const updateAppointmentValidation = [
 
   param("appointmentId")
     .notEmpty()
@@ -162,7 +162,7 @@ export const updateAppointmentValidation = [
 /* ───────────────────────────────────────────── */
 /* GET APPOINTMENTS */
 /* ───────────────────────────────────────────── */
-export const getAppointmentsValidation = [
+ const getAppointmentsValidation = [
   query("date")
     .optional()
     .isISO8601()
