@@ -1,19 +1,18 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  host: `email-smtp.${process.env.SES_REGION}.amazonaws.com`,
+  host: "smtp.sendgrid.net",
   port: 587,
-  secure: false,
   auth: {
-    user: process.env.SES_SMTP_USER,
-    pass: process.env.SES_SMTP_PASS,
+    user: "apikey",
+    pass: process.env.SENDGRID_API_KEY,
   },
 });
 
 
 exports.sendMail = async (to, subject, html) => {
   const info = await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
+    from: "Luminexis <m.noumannaveed@luminexiscloud.com>",
     to,
     subject,
     html,
