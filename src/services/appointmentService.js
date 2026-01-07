@@ -1,8 +1,8 @@
 const Appointment = require('../models/Appointment');
 
 class AppointmentService {
-  async createAppointment(userId, appointmentData) {
-    return await Appointment.createAppointment(userId, appointmentData);
+  async createAppointment(actorUserId, appointmentData) {
+    return Appointment.createAppointment(actorUserId, appointmentData);
   }
 
   async getUserAppointments(userId, date) {
@@ -10,7 +10,11 @@ class AppointmentService {
   }
 
   async updateAppointment(appointmentId, userId, updateData) {
-    return await Appointment.updateAppointment(appointmentId, userId, updateData);
+    return await Appointment.updateAppointment(
+      appointmentId,
+      userId,
+      updateData
+    );
   }
 
   async deleteAppointment(appointmentId, userId) {

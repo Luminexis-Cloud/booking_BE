@@ -49,11 +49,10 @@ class Appointment {
   /* ───────────────────────────── */
   /* CREATE */
   /* ───────────────────────────── */
-  static async createAppointment(userId, appointmentData) {
+  static async createAppointment(actorUserId, appointmentData) {
     const {
       title,
       notes,
-      date,
       startTime,
       endTime,
       color,
@@ -65,8 +64,23 @@ class Appointment {
       downPayment,
       storeId,
       clientId,
+      employeeId, // ✅ REQUIRED
       services = [],
     } = appointmentData;
+
+    const employee = await prisma.user.findFirst({
+      where: {
+        id: employeeId,
+        storeId,
+        isActive: true,
+      },
+    });
+
+    if (!employee) {
+      throw new Error(
+        "Invalid employeeId or employee does not belong to store"
+      );
+    }
 
     // Business rules
     this.validateAppointmentTime(startTime, endTime);
@@ -75,7 +89,7 @@ class Appointment {
     // Conflict check (same user)
     const conflict = await prisma.appointment.findFirst({
       where: {
-        userId,
+        userId: employeeId,
         OR: [
           {
             startTime: { lte: new Date(startTime) },
@@ -94,13 +108,13 @@ class Appointment {
     }
 
     const start = new Date(startTime);
-const end = new Date(endTime);
+    const end = new Date(endTime);
 
-const dateOnly = new Date(
-  start.getFullYear(),
-  start.getMonth(),
-  start.getDate()
-);
+    const dateOnly = new Date(
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate()
+    );
 
     // Create appointment
     const appointment = await prisma.appointment.create({
@@ -124,7 +138,7 @@ const dateOnly = new Date(
         downPayment: downPayment ?? null,
 
         storeId,
-        userId,
+        userId: employeeId, // ✅ THIS IS THE FIX
         clientId,
       },
     });
@@ -217,6 +231,24 @@ const dateOnly = new Date(
     await prisma.appointment.delete({ where: { id: appointmentId } });
 
     return { message: "Appointment deleted successfully" };
+  }
+
+  static async hasPermission(userId, module, action) {
+    const count = await prisma.rolePermission.count({
+      where: {
+        permission: {
+          module,
+          action,
+        },
+        role: {
+          users: {
+            some: { id: userId },
+          },
+        },
+      },
+    });
+
+    return count > 0;
   }
 }
 

@@ -33,6 +33,11 @@ const allowedDays = [
 /* CREATE APPOINTMENT */
 /* ───────────────────────────────────────────── */
 const createAppointmentValidation = [
+  body("employeeId")
+  .notEmpty()
+  .withMessage("employeeId is required")
+  .isString(),
+  
   body("title")
     .notEmpty()
     .withMessage("Title is required")

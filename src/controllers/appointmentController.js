@@ -5,16 +5,16 @@ class AppointmentController {
     const requestId = Date.now();
 
     try {
-      const userId = req.user.userId;
+      const actorUserId = req.user.userId; // 🔑 AUTH USER
       const appointmentData = req.body;
 
       console.log(`[${requestId}] CREATE_APPOINTMENT_REQUEST`, {
-        userId,
+        actorUserId,
         appointmentData,
       });
 
       const appointment = await appointmentService.createAppointment(
-        userId,
+        actorUserId,
         appointmentData
       );
 
