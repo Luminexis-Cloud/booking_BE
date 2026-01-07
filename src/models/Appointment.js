@@ -117,18 +117,25 @@ class Appointment {
       start.getDate()
     );
 
+    let resolvedClientId = null;
+
     if (clientId) {
-      const client = await prisma.client.findUnique({
-        where: { id: clientId },
+      const client = await prisma.client.findFirst({
+        where: {
+          id: clientId,
+          storeId, // ✅ IMPORTANT: same store
+        },
       });
 
       if (!client) {
         const err = new Error(
-          "Invalid clientId. Use Client.id, not Client.clientId"
+          "Invalid clientId. Use Client.id and ensure it belongs to this store"
         );
         err.statusCode = 400;
         throw err;
       }
+
+      resolvedClientId = client.id;
     }
 
     // Create appointment
@@ -153,8 +160,8 @@ class Appointment {
         downPayment: downPayment ?? null,
 
         storeId,
-        userId: employeeId, // ✅ THIS IS THE FIX
-        clientId: client.id,
+        userId: employeeId,
+        clientId: resolvedClientId, // ✅ SAFE
       },
     });
 
