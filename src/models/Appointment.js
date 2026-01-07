@@ -93,15 +93,24 @@ class Appointment {
       throw new Error("You already have an appointment at this time");
     }
 
+    const start = new Date(startTime);
+const end = new Date(endTime);
+
+const dateOnly = new Date(
+  start.getFullYear(),
+  start.getMonth(),
+  start.getDate()
+);
+
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
         title,
         notes,
 
-        date: new Date(date),
-        startTime: new Date(startTime),
-        endTime: new Date(endTime),
+        date: dateOnly,
+        startTime: start,
+        endTime: end,
 
         color: color || "gold",
 
