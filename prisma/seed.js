@@ -983,16 +983,31 @@ async function main() {
       await prisma.appointment.create({
         data: {
           title: `Appointment ${i}`,
-          //description: `ServiceId: ${serviceId}`,
+          notes: `Seeded appointment for service ${serviceId}`,
+
+          // ✅ REQUIRED NEW FIELD
           date: new Date(startTime.toDateString()),
+
           startTime,
           endTime,
-          //type: "general",
+
+          color: "gold",
+
+          sendSms: false,
+          smsMessage: null,
+
+          isRecurring: false,
+          recurrence: null,
+          recurrenceConfig: null,
+
+          downPayment: null,
+
           storeId: store.id,
           userId: employee.id,
           clientId: client.id,
         },
       });
+
     }
   }
 
