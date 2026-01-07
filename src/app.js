@@ -15,6 +15,7 @@ const storeRoutes = require('./routes/store');
 const serviceRoutes = require('./routes/service');
 const clientRoutes = require('./routes/client');
 const categoryRoutes = require('./routes/category');
+const appointmentRoutes = require('./routes/appointment');
 // const appointmentRoutes = require('./routes/appointment'); // Commented out for now
 
 // ✅ New routes
@@ -82,6 +83,7 @@ app.use('/api', categoryRoutes);
 
 // ✅ Added new modules
 app.use('/api/employees', employeeRoutes);
+app.use('/api', appointmentRoutes);
 app.use('/api/visibility', visibilityRoutes);
 app.use('/api/roles', rolesRoutes);
 
