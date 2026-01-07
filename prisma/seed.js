@@ -987,7 +987,7 @@ async function main() {
           date: new Date(startTime.toDateString()),
           startTime,
           endTime,
-          type: "general",
+          //type: "general",
           storeId: store.id,
           userId: employee.id,
           clientId: client.id,
