@@ -983,7 +983,7 @@ async function main() {
       await prisma.appointment.create({
         data: {
           title: `Appointment ${i}`,
-          description: `ServiceId: ${serviceId}`,
+          //description: `ServiceId: ${serviceId}`,
           date: new Date(startTime.toDateString()),
           startTime,
           endTime,
