@@ -137,15 +137,25 @@ class Appointment {
   /* ───────────────────────────── */
   /* GET */
   /* ───────────────────────────── */
-  static async getUserAppointments(userId, date) {
+  static async getUserAppointments({ storeId, employeeIds }) {
     return prisma.appointment.findMany({
       where: {
-        userId,
-        date: new Date(date),
+        storeId,
+
+        // ✅ employeeId IN array (optional)
+        ...(employeeIds?.length && {
+          userId: { in: employeeIds },
+        }),
       },
+
       orderBy: { startTime: "asc" },
+
       include: {
-        services: { include: { service: true } },
+        user: true, // employee
+        client: true,
+        services: {
+          include: { service: true },
+        },
       },
     });
   }

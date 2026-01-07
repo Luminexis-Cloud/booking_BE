@@ -1,7 +1,6 @@
 const appointmentService = require('../services/appointmentService');
 
 class AppointmentController {
-
   async createAppointment(req, res, next) {
     const requestId = Date.now();
 
@@ -28,7 +27,6 @@ class AppointmentController {
         message: "Appointment created successfully",
         data: { appointment },
       });
-
     } catch (error) {
       console.error(`[${requestId}] CREATE_APPOINTMENT_ERROR`, error);
       next(error);
@@ -39,25 +37,29 @@ class AppointmentController {
     const requestId = Date.now();
 
     try {
-      const userId = req.user.userId;
-      const { date } = req.query;
+      const { storeId } = req.query;
+
+      // normalize employeeIds[] safely
+      const employeeIds = req.query.employeeIds
+        ? [].concat(req.query.employeeIds)
+        : [];
 
       console.log(`[${requestId}] GET_APPOINTMENTS_REQUEST`, {
-        userId,
-        date,
+        storeId,
+        employeeIds,
       });
 
-      if (!date) {
+      if (!storeId) {
         return res.status(400).json({
           success: false,
-          message: "Date parameter is required",
+          message: "storeId is required",
         });
       }
 
-      const appointments = await appointmentService.getUserAppointments(
-        userId,
-        date
-      );
+      const appointments = await appointmentService.getUserAppointments({
+        storeId,
+        employeeIds,
+      });
 
       console.log(`[${requestId}] GET_APPOINTMENTS_SUCCESS`, {
         count: appointments.length,
@@ -68,7 +70,6 @@ class AppointmentController {
         message: "Appointments retrieved successfully",
         data: { appointments },
       });
-
     } catch (error) {
       console.error(`[${requestId}] GET_APPOINTMENTS_ERROR`, error);
       next(error);
@@ -111,7 +112,6 @@ class AppointmentController {
         message: "Appointment updated successfully",
         data: { appointment },
       });
-
     } catch (error) {
       console.error(`[${requestId}] UPDATE_APPOINTMENT_ERROR`, error);
       next(error);
@@ -150,7 +150,6 @@ class AppointmentController {
         success: true,
         message: "Appointment deleted successfully",
       });
-
     } catch (error) {
       console.error(`[${requestId}] DELETE_APPOINTMENT_ERROR`, error);
       next(error);

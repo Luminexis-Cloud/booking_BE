@@ -1,8 +1,8 @@
-const express = require('express');
-const { body, query, param } = require('express-validator');
-const appointmentController = require('../controllers/appointmentController');
-const { authenticateToken } = require('../middlewares/auth');
-const { handleValidationErrors } = require('../middlewares/validation');
+const express = require("express");
+const { body, query, param } = require("express-validator");
+const appointmentController = require("../controllers/appointmentController");
+const { authenticateToken } = require("../middlewares/auth");
+const { handleValidationErrors } = require("../middlewares/validation");
 
 const router = express.Router();
 
@@ -10,20 +10,32 @@ const router = express.Router();
 const allowedRecurrence = ["daily", "weekly", "monthly", "yearly"];
 const allowedSmsSchedule = ["instant", "one_day_before", "two_hours_before"];
 const allowedColors = [
-  "gold", "blue", "green", "yellow", "red", "teal", "beige", "gray"
+  "gold",
+  "blue",
+  "green",
+  "yellow",
+  "red",
+  "teal",
+  "beige",
+  "gray",
 ];
 const allowedDays = [
-  "monday", "tuesday", "wednesday",
-  "thursday", "friday", "saturday", "sunday"
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
 ];
 
 /* ───────────────────────────────────────────── */
 /* CREATE APPOINTMENT */
 /* ───────────────────────────────────────────── */
- const createAppointmentValidation = [
-
+const createAppointmentValidation = [
   body("title")
-    .notEmpty().withMessage("Title is required")
+    .notEmpty()
+    .withMessage("Title is required")
     .isLength({ min: 1, max: 100 })
     .withMessage("Title must be between 1 and 100 characters"),
 
@@ -48,13 +60,9 @@ const allowedDays = [
       return true;
     }),
 
-  body("storeId")
-    .notEmpty()
-    .withMessage("Store ID is required"),
+  body("storeId").notEmpty().withMessage("Store ID is required"),
 
-  body("clientId")
-    .optional()
-    .isString(),
+  body("clientId").optional().isString(),
 
   body("color")
     .optional()
@@ -98,25 +106,21 @@ const allowedDays = [
     .withMessage(`Invalid weekday value`),
 
   /* ───── SMS ───── */
-  body("sendSms")
-    .optional()
-    .isBoolean()
-    .withMessage("sendSms must be boolean"),
+  body("sendSms").optional().isBoolean().withMessage("sendSms must be boolean"),
 
   body("smsSchedule")
     .if(body("sendSms").equals("true"))
     .isIn(allowedSmsSchedule)
-    .withMessage(`smsSchedule must be one of: ${allowedSmsSchedule.join(", ")}`)
+    .withMessage(
+      `smsSchedule must be one of: ${allowedSmsSchedule.join(", ")}`
+    ),
 ];
 
 /* ───────────────────────────────────────────── */
 /* UPDATE APPOINTMENT */
 /* ───────────────────────────────────────────── */
- const updateAppointmentValidation = [
-
-  param("appointmentId")
-    .notEmpty()
-    .withMessage("Appointment ID is required"),
+const updateAppointmentValidation = [
+  param("appointmentId").notEmpty().withMessage("Appointment ID is required"),
 
   body("title")
     .optional()
@@ -138,35 +142,29 @@ const allowedDays = [
     .isISO8601()
     .withMessage("End time must be a valid ISO date"),
 
-  body("color")
-    .optional()
-    .isIn(allowedColors),
+  body("color").optional().isIn(allowedColors),
 
-  body("isRecurring")
-    .optional()
-    .isBoolean(),
+  body("isRecurring").optional().isBoolean(),
 
-  body("recurrence")
-    .optional()
-    .isIn(allowedRecurrence),
+  body("recurrence").optional().isIn(allowedRecurrence),
 
-  body("sendSms")
-    .optional()
-    .isBoolean(),
+  body("sendSms").optional().isBoolean(),
 
-  body("smsSchedule")
-    .optional()
-    .isIn(allowedSmsSchedule)
+  body("smsSchedule").optional().isIn(allowedSmsSchedule),
 ];
 
 /* ───────────────────────────────────────────── */
 /* GET APPOINTMENTS */
 /* ───────────────────────────────────────────── */
- const getAppointmentsValidation = [
-  query("date")
+const getAppointmentsValidation = [
+  query("storeId").notEmpty().withMessage("storeId is required"),
+
+  query("employeeIds")
     .optional()
-    .isISO8601()
-    .withMessage("Date must be in YYYY-MM-DD format")
+    .isArray()
+    .withMessage("employeeIds must be an array"),
+
+  query("employeeIds.*").optional().isString(),
 ];
 
 // Routes
@@ -200,6 +198,5 @@ router.delete(
   authenticateToken,
   appointmentController.deleteAppointment
 );
-
 
 module.exports = router;
