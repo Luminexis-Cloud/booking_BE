@@ -162,14 +162,12 @@ const updateAppointmentValidation = [
 /* GET APPOINTMENTS */
 /* ───────────────────────────────────────────── */
 const getAppointmentsValidation = [
-  query("storeId").notEmpty().withMessage("storeId is required"),
-
-  query("employeeIds")
+  query("storeId").isString().notEmpty(),
+  body("employeeIds")
     .optional()
-    .isArray()
-    .withMessage("employeeIds must be an array"),
-
-  query("employeeIds.*").optional().isString(),
+    .isArray(),
+  body("employeeIds.*")
+    .isString(),
 ];
 
 // Routes

@@ -876,6 +876,107 @@ class EmployeeController {
       next(error);
     }
   }
+
+  async getSchedules(req, res, next) {
+    try {
+      const { employeeIds } = req.body;
+
+      // ❌ employeeIds missing
+      if (employeeIds === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: "employeeIds is required",
+        });
+      }
+
+      // ✅ empty array allowed
+      if (employeeIds.length === 0) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+        });
+      }
+
+      const results = [];
+
+      for (const employeeId of employeeIds) {
+        const employee = await prisma.user.findUnique({
+          where: { id: employeeId },
+        });
+
+        if (!employee) {
+          results.push({
+            employeeId,
+            success: false,
+            message: "Employee not found",
+          });
+          continue;
+        }
+
+        const pattern = await prisma.employeeSchedulePattern.findFirst({
+          where: { userId: employeeId, isActive: true },
+          select: {
+            repeatEveryWeeks: true,
+            startsAt: true,
+          },
+        });
+
+        if (!pattern) {
+          results.push({
+            employeeId,
+            success: true,
+            data: null,
+          });
+          continue;
+        }
+
+        const schedules = await prisma.employeeWorkingSchedule.findMany({
+          where: { userId: employeeId },
+          include: { timeSlots: true },
+          orderBy: [{ weekOffset: "asc" }, { dayOfWeek: "asc" }],
+        });
+
+        const weeks = [];
+
+        for (let i = 1; i <= pattern.repeatEveryWeeks; i++) {
+          const weekSchedules = schedules.filter((s) => s.weekOffset === i);
+
+          weeks.push({
+            weekOffset: i,
+            isActive: weekSchedules.length > 0,
+            weeklySchedule: weekSchedules.map((s) => ({
+              dayOfWeek: s.dayOfWeek,
+              isEnabled: s.isEnabled,
+              timeSlots: s.timeSlots.map((t) => ({
+                startTime: t.startTime,
+                endTime: t.endTime,
+              })),
+            })),
+          });
+        }
+
+        results.push({
+          employeeId,
+          success: true,
+          data: {
+            pattern: {
+              repeatEveryWeeks: pattern.repeatEveryWeeks,
+              startsAt: pattern.startsAt,
+            },
+            weeks,
+          },
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: results,
+      });
+    } catch (error) {
+      console.error("❌ getSchedules error:", error);
+      next(error);
+    }
+  }
 }
 
 module.exports = new EmployeeController();
