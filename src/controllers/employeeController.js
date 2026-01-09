@@ -879,10 +879,15 @@ class EmployeeController {
 
   async getSchedules(req, res, next) {
     try {
+      console.log("➡️ getSchedules called");
+      console.log("📥 Request body:", req.body);
+
       const { employeeIds } = req.body;
 
       // ❌ employeeIds missing
       if (employeeIds === undefined) {
+        console.warn("⚠️ employeeIds missing in request body");
+
         return res.status(400).json({
           success: false,
           message: "employeeIds is required",
@@ -891,20 +896,28 @@ class EmployeeController {
 
       // ✅ empty array allowed
       if (employeeIds.length === 0) {
+        console.log("ℹ️ employeeIds is empty — returning empty result");
+
         return res.status(200).json({
           success: true,
           data: [],
         });
       }
 
+      console.log(`👥 Processing ${employeeIds.length} employee(s)`);
+
       const results = [];
 
       for (const employeeId of employeeIds) {
+        console.log(`🔍 Fetching employee: ${employeeId}`);
+
         const employee = await prisma.user.findUnique({
           where: { id: employeeId },
         });
 
         if (!employee) {
+          console.warn(`❌ Employee not found: ${employeeId}`);
+
           results.push({
             employeeId,
             success: false,
@@ -912,6 +925,8 @@ class EmployeeController {
           });
           continue;
         }
+
+        console.log(`✅ Employee found: ${employeeId}`);
 
         const pattern = await prisma.employeeSchedulePattern.findFirst({
           where: { userId: employeeId, isActive: true },
@@ -922,6 +937,10 @@ class EmployeeController {
         });
 
         if (!pattern) {
+          console.log(
+            `ℹ️ No active schedule pattern for employee: ${employeeId}`
+          );
+
           results.push({
             employeeId,
             success: true,
@@ -930,16 +949,26 @@ class EmployeeController {
           continue;
         }
 
+        console.log(
+          `📅 Schedule pattern found for ${employeeId} (repeatEveryWeeks=${pattern.repeatEveryWeeks})`
+        );
+
         const schedules = await prisma.employeeWorkingSchedule.findMany({
           where: { userId: employeeId },
           include: { timeSlots: true },
           orderBy: [{ weekOffset: "asc" }, { dayOfWeek: "asc" }],
         });
 
+        console.log(
+          `🗓️ ${schedules.length} schedule entries found for ${employeeId}`
+        );
+
         const weeks = [];
 
         for (let i = 1; i <= pattern.repeatEveryWeeks; i++) {
           const weekSchedules = schedules.filter((s) => s.weekOffset === i);
+
+          console.log(`📦 Week ${i}: ${weekSchedules.length} schedule(s)`);
 
           weeks.push({
             weekOffset: i,
@@ -966,7 +995,11 @@ class EmployeeController {
             weeks,
           },
         });
+
+        console.log(`✅ Schedule built for employee: ${employeeId}`);
       }
+
+      console.log("✅ getSchedules completed successfully");
 
       return res.status(200).json({
         success: true,
