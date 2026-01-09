@@ -884,124 +884,108 @@ class EmployeeController {
 
       const { employeeIds } = req.body;
 
-      // ❌ employeeIds missing
       if (employeeIds === undefined) {
         console.warn("⚠️ employeeIds is missing");
-
         return res.status(400).json({
           success: false,
           message: "employeeIds is required",
         });
       }
 
-      // ✅ empty array allowed
       if (employeeIds.length === 0) {
-        console.log("ℹ️ employeeIds is empty, returning empty schedule");
-
+        console.log("ℹ️ employeeIds empty");
         return res.status(200).json({
           success: true,
-          data: {
-            pattern: null,
-            weeks: [],
-          },
+          data: [],
         });
       }
 
       console.log(`👥 Processing ${employeeIds.length} employee(s)`);
 
-      // 1️⃣ Fetch pattern from FIRST employee
-      console.log(
-        `🔍 Fetching active schedule pattern for employee ${employeeIds[0]}`
-      );
+      const data = [];
 
-      const pattern = await prisma.employeeSchedulePattern.findFirst({
-        where: {
-          userId: employeeIds[0],
-          isActive: true,
-        },
-        select: {
-          repeatEveryWeeks: true,
-          startsAt: true,
-        },
-      });
+      // 🔁 LOOP PER EMPLOYEE
+      for (const employeeId of employeeIds) {
+        console.log(`🔍 Processing employee ${employeeId}`);
 
-      if (!pattern) {
-        console.log("ℹ️ No active pattern found");
-
-        return res.status(200).json({
-          success: true,
-          data: null,
+        // 1️⃣ Fetch pattern
+        const pattern = await prisma.employeeSchedulePattern.findFirst({
+          where: {
+            userId: employeeId,
+            isActive: true,
+          },
+          select: {
+            repeatEveryWeeks: true,
+            startsAt: true,
+          },
         });
-      }
 
-      console.log(
-        `✅ Pattern found → repeatEveryWeeks=${pattern.repeatEveryWeeks}, startsAt=${pattern.startsAt}`
-      );
-
-      // 2️⃣ Initialize weeks
-      const weeks = [];
-      for (let i = 1; i <= pattern.repeatEveryWeeks; i++) {
-        weeks.push({
-          weekOffset: i,
-          isActive: false,
-          weeklySchedule: [],
-        });
-      }
-
-      console.log(`📦 Initialized ${weeks.length} week(s)`);
-
-      // 3️⃣ Fetch schedules for ALL employees
-      console.log("🔍 Fetching working schedules for all employees");
-
-      const schedules = await prisma.employeeWorkingSchedule.findMany({
-        where: {
-          userId: { in: employeeIds },
-        },
-        include: { timeSlots: true },
-      });
-
-      console.log(`🗓️ ${schedules.length} total schedule record(s) found`);
-
-      // 4️⃣ Merge schedules into weeks
-      for (const schedule of schedules) {
-        console.log(
-          `➡️ Processing schedule → employee=${schedule.userId}, week=${schedule.weekOffset}, day=${schedule.dayOfWeek}`
-        );
-
-        const week = weeks.find((w) => w.weekOffset === schedule.weekOffset);
-
-        if (!week) {
-          console.warn(
-            `⚠️ Week ${schedule.weekOffset} not found for employee ${schedule.userId}`
-          );
+        if (!pattern) {
+          console.log(`ℹ️ No pattern for employee ${employeeId}`);
+          data.push({
+            employeeId,
+            pattern: null,
+            weeks: [],
+          });
           continue;
         }
 
-        week.isActive = true;
+        console.log(
+          `✅ Pattern found for ${employeeId} → repeatEveryWeeks=${pattern.repeatEveryWeeks}`
+        );
 
-        week.weeklySchedule.push({
-          employeeId: schedule.userId,
-          dayOfWeek: schedule.dayOfWeek,
-          isEnabled: schedule.isEnabled,
-          timeSlots: schedule.timeSlots.map((t) => ({
-            startTime: t.startTime,
-            endTime: t.endTime,
-          })),
+        // 2️⃣ Init weeks
+        const weeks = [];
+        for (let i = 1; i <= pattern.repeatEveryWeeks; i++) {
+          weeks.push({
+            weekOffset: i,
+            isActive: false,
+            weeklySchedule: [],
+          });
+        }
+
+        // 3️⃣ Fetch schedules for THIS employee
+        const schedules = await prisma.employeeWorkingSchedule.findMany({
+          where: { userId: employeeId },
+          include: { timeSlots: true },
         });
 
         console.log(
-          `✅ Added schedule → employee=${schedule.userId}, week=${schedule.weekOffset}`
+          `🗓️ ${schedules.length} schedules found for employee ${employeeId}`
         );
+
+        // 4️⃣ Fill weeks
+        for (const schedule of schedules) {
+          const week = weeks.find((w) => w.weekOffset === schedule.weekOffset);
+
+          if (!week) continue;
+
+          week.isActive = true;
+
+          week.weeklySchedule.push({
+            dayOfWeek: schedule.dayOfWeek,
+            isEnabled: schedule.isEnabled,
+            timeSlots: schedule.timeSlots.map((t) => ({
+              startTime: t.startTime,
+              endTime: t.endTime,
+            })),
+          });
+        }
+
+        data.push({
+          employeeId,
+          pattern,
+          weeks,
+        });
+
+        console.log(`✅ Finished employee ${employeeId}`);
       }
 
-      console.log("✅ getSchedules completed successfully");
+      console.log("✅ getSchedules completed");
 
       return res.status(200).json({
         success: true,
-        data: {
-          pattern,
-          weeks,
-        },
+        data,
       });
     } catch (error) {
       console.error("❌ getSchedules error:", error);
