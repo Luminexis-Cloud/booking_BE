@@ -879,14 +879,14 @@ class EmployeeController {
 
   async getSchedules(req, res, next) {
     try {
-      console.log("➡️ getSchedules called");
+      console.log("➡️ [getSchedules] API called");
       console.log("📥 Request body:", req.body);
 
       const { employeeIds } = req.body;
 
       // ❌ employeeIds missing
       if (employeeIds === undefined) {
-        console.warn("⚠️ employeeIds missing in request body");
+        console.warn("⚠️ employeeIds is missing");
 
         return res.status(400).json({
           success: false,
@@ -896,114 +896,112 @@ class EmployeeController {
 
       // ✅ empty array allowed
       if (employeeIds.length === 0) {
-        console.log("ℹ️ employeeIds is empty — returning empty result");
+        console.log("ℹ️ employeeIds is empty, returning empty schedule");
 
         return res.status(200).json({
           success: true,
-          data: [],
+          data: {
+            pattern: null,
+            weeks: [],
+          },
         });
       }
 
       console.log(`👥 Processing ${employeeIds.length} employee(s)`);
 
-      const results = [];
+      // 1️⃣ Fetch pattern from FIRST employee
+      console.log(
+        `🔍 Fetching active schedule pattern for employee ${employeeIds[0]}`
+      );
 
-      for (const employeeId of employeeIds) {
-        console.log(`🔍 Fetching employee: ${employeeId}`);
+      const pattern = await prisma.employeeSchedulePattern.findFirst({
+        where: {
+          userId: employeeIds[0],
+          isActive: true,
+        },
+        select: {
+          repeatEveryWeeks: true,
+          startsAt: true,
+        },
+      });
 
-        const employee = await prisma.user.findUnique({
-          where: { id: employeeId },
-        });
+      if (!pattern) {
+        console.log("ℹ️ No active pattern found");
 
-        if (!employee) {
-          console.warn(`❌ Employee not found: ${employeeId}`);
-
-          results.push({
-            employeeId,
-            success: false,
-            message: "Employee not found",
-          });
-          continue;
-        }
-
-        console.log(`✅ Employee found: ${employeeId}`);
-
-        const pattern = await prisma.employeeSchedulePattern.findFirst({
-          where: { userId: employeeId, isActive: true },
-          select: {
-            repeatEveryWeeks: true,
-            startsAt: true,
-          },
-        });
-
-        if (!pattern) {
-          console.log(
-            `ℹ️ No active schedule pattern for employee: ${employeeId}`
-          );
-
-          results.push({
-            employeeId,
-            success: true,
-            data: null,
-          });
-          continue;
-        }
-
-        console.log(
-          `📅 Schedule pattern found for ${employeeId} (repeatEveryWeeks=${pattern.repeatEveryWeeks})`
-        );
-
-        const schedules = await prisma.employeeWorkingSchedule.findMany({
-          where: { userId: employeeId },
-          include: { timeSlots: true },
-          orderBy: [{ weekOffset: "asc" }, { dayOfWeek: "asc" }],
-        });
-
-        console.log(
-          `🗓️ ${schedules.length} schedule entries found for ${employeeId}`
-        );
-
-        const weeks = [];
-
-        for (let i = 1; i <= pattern.repeatEveryWeeks; i++) {
-          const weekSchedules = schedules.filter((s) => s.weekOffset === i);
-
-          console.log(`📦 Week ${i}: ${weekSchedules.length} schedule(s)`);
-
-          weeks.push({
-            weekOffset: i,
-            isActive: weekSchedules.length > 0,
-            weeklySchedule: weekSchedules.map((s) => ({
-              dayOfWeek: s.dayOfWeek,
-              isEnabled: s.isEnabled,
-              timeSlots: s.timeSlots.map((t) => ({
-                startTime: t.startTime,
-                endTime: t.endTime,
-              })),
-            })),
-          });
-        }
-
-        results.push({
-          employeeId,
+        return res.status(200).json({
           success: true,
-          data: {
-            pattern: {
-              repeatEveryWeeks: pattern.repeatEveryWeeks,
-              startsAt: pattern.startsAt,
-            },
-            weeks,
-          },
+          data: null,
+        });
+      }
+
+      console.log(
+        `✅ Pattern found → repeatEveryWeeks=${pattern.repeatEveryWeeks}, startsAt=${pattern.startsAt}`
+      );
+
+      // 2️⃣ Initialize weeks
+      const weeks = [];
+      for (let i = 1; i <= pattern.repeatEveryWeeks; i++) {
+        weeks.push({
+          weekOffset: i,
+          isActive: false,
+          weeklySchedule: [],
+        });
+      }
+
+      console.log(`📦 Initialized ${weeks.length} week(s)`);
+
+      // 3️⃣ Fetch schedules for ALL employees
+      console.log("🔍 Fetching working schedules for all employees");
+
+      const schedules = await prisma.employeeWorkingSchedule.findMany({
+        where: {
+          userId: { in: employeeIds },
+        },
+        include: { timeSlots: true },
+      });
+
+      console.log(`🗓️ ${schedules.length} total schedule record(s) found`);
+
+      // 4️⃣ Merge schedules into weeks
+      for (const schedule of schedules) {
+        console.log(
+          `➡️ Processing schedule → employee=${schedule.userId}, week=${schedule.weekOffset}, day=${schedule.dayOfWeek}`
+        );
+
+        const week = weeks.find((w) => w.weekOffset === schedule.weekOffset);
+
+        if (!week) {
+          console.warn(
+            `⚠️ Week ${schedule.weekOffset} not found for employee ${schedule.userId}`
+          );
+          continue;
+        }
+
+        week.isActive = true;
+
+        week.weeklySchedule.push({
+          employeeId: schedule.userId,
+          dayOfWeek: schedule.dayOfWeek,
+          isEnabled: schedule.isEnabled,
+          timeSlots: schedule.timeSlots.map((t) => ({
+            startTime: t.startTime,
+            endTime: t.endTime,
+          })),
         });
 
-        console.log(`✅ Schedule built for employee: ${employeeId}`);
+        console.log(
+          `✅ Added schedule → employee=${schedule.userId}, week=${schedule.weekOffset}`
+        );
       }
 
       console.log("✅ getSchedules completed successfully");
 
       return res.status(200).json({
         success: true,
-        data: results,
+        data: {
+          pattern,
+          weeks,
+        },
       });
     } catch (error) {
       console.error("❌ getSchedules error:", error);
