@@ -133,7 +133,7 @@ router.get(
 );
 
 router.get(
-  "/schedules",
+  "/schedules/bulk",
   authenticateToken,
   [
     body("employeeIds")
