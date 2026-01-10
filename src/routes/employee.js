@@ -103,7 +103,7 @@ router.post(
     body("employeeId").notEmpty().withMessage("employeeId is required"),
     body("storeId").notEmpty().withMessage("storeId is required"),
     body("serviceIds")
-      .isArray({ min: 1 })
+      .isArray()
       .withMessage("serviceIds must be a non-empty array"),
   ],
   handleValidationErrors,
