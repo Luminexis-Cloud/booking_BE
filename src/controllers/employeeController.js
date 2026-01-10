@@ -558,89 +558,145 @@ class EmployeeController {
   // ADD MULTIPLE SERVICES
   // ==========================
   async addMultipleEmployeeServices(req, res, next) {
+    console.log("🚀 addMultipleEmployeeServices called");
+
     try {
-      const { employeeId, storeId, serviceIds } = req.body;
+      const {
+        employeeId,
+        storeId,
+        serviceIds = [],
+        removedServicesIds = [],
+      } = req.body;
 
-      console.log("📥 REQUEST BODY:", req.body);
+      console.log("📥 REQUEST BODY:", {
+        employeeId,
+        storeId,
+        serviceIdsCount: serviceIds.length,
+        removedServicesIdsCount: removedServicesIds.length,
+      });
 
-      // 1️⃣ Validate input
-      if (
-        !employeeId ||
-        !storeId ||
-        !Array.isArray(serviceIds) ||
-        serviceIds.length === 0
-      ) {
+      // 1️⃣ Validate required fields
+      if (!employeeId || !storeId) {
+        console.warn("⚠️ Missing required fields", { employeeId, storeId });
+
         return res.status(400).json({
           success: false,
-          message: "employeeId, storeId and serviceIds[] are required.",
+          message: "employeeId and storeId are required.",
         });
       }
 
       // 2️⃣ Validate employee
+      console.log("🔍 Validating employee:", employeeId);
+
       const employee = await prisma.user.findUnique({
         where: { id: employeeId },
         select: { id: true },
       });
 
       if (!employee) {
+        console.error("❌ Employee not found:", employeeId);
+
         return res.status(404).json({
           success: false,
           message: "Employee not found.",
         });
       }
 
-      // 3️⃣ 🔥 VALIDATE SERVICES (THIS PREVENTS FK ERROR)
-      const services = await prisma.service.findMany({
-        where: {
-          id: { in: serviceIds },
-          storeId, // 🔥 VERY IMPORTANT
-          isActive: true, // 🔥 recommended
-        },
-        select: { id: true },
-      });
+      console.log("✅ Employee validated");
 
-      const validServiceIds = services.map((s) => s.id);
-      const invalidServiceIds = serviceIds.filter(
-        (id) => !validServiceIds.includes(id)
-      );
+      // 3️⃣ Validate services to ADD
+      let validServiceIds = [];
 
-      // 4️⃣ If any invalid → STOP
-      if (invalidServiceIds.length > 0) {
-        console.warn("🚫 Invalid serviceIds detected:", invalidServiceIds);
+      if (serviceIds.length > 0) {
+        console.log("🔍 Validating services to add:", serviceIds.length);
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Some serviceIds are invalid or do not belong to this store.",
-          invalidServiceIds,
+        const services = await prisma.service.findMany({
+          where: {
+            id: { in: serviceIds },
+            storeId,
+            isActive: true,
+          },
+          select: { id: true },
         });
+
+        validServiceIds = services.map((s) => s.id);
+
+        const invalidServiceIds = serviceIds.filter(
+          (id) => !validServiceIds.includes(id)
+        );
+
+        if (invalidServiceIds.length > 0) {
+          console.warn("🚫 Invalid serviceIds detected:", invalidServiceIds);
+
+          return res.status(400).json({
+            success: false,
+            message:
+              "Some serviceIds are invalid or do not belong to this store.",
+            invalidServiceIds,
+          });
+        }
+
+        console.log("✅ All services validated successfully");
+      } else {
+        console.log("ℹ️ No services to add");
       }
 
-      // 5️⃣ Prepare rows
-      const rows = validServiceIds.map((serviceId) => ({
-        employeeId,
-        serviceId,
-        storeId,
-      }));
+      // 4️⃣ Remove unchecked services
+      if (removedServicesIds.length > 0) {
+        console.log("🗑️ Removing unchecked services:", removedServicesIds);
 
-      console.log("ROWS TO INSERT:", rows);
+        const deleteResult = await prisma.employeeService.deleteMany({
+          where: {
+            employeeId,
+            storeId,
+            serviceId: { in: removedServicesIds },
+          },
+        });
 
-      // 6️⃣ Insert safely
-      const result = await prisma.employeeService.createMany({
-        data: rows,
-        skipDuplicates: true,
-      });
+        console.log("🧹 Services removed:", {
+          requested: removedServicesIds.length,
+          deleted: deleteResult.count,
+        });
+      } else {
+        console.log("ℹ️ No services to remove");
+      }
 
-      return res.status(201).json({
+      // 5️⃣ Add new services
+      let insertedCount = 0;
+
+      if (validServiceIds.length > 0) {
+        console.log("➕ Adding services:", validServiceIds);
+
+        const rows = validServiceIds.map((serviceId) => ({
+          employeeId,
+          serviceId,
+          storeId,
+        }));
+
+        console.log("📦 Rows prepared for insert:", rows.length);
+
+        const result = await prisma.employeeService.createMany({
+          data: rows,
+          skipDuplicates: true,
+        });
+
+        insertedCount = result.count;
+
+        console.log("✅ Services added:", insertedCount);
+      } else {
+        console.log("ℹ️ No new services to add");
+      }
+
+      console.log("🎉 Employee services update completed");
+
+      return res.status(200).json({
         success: true,
-        message:
-          result.count > 0
-            ? "Employee services added successfully."
-            : "No new services were added (duplicates skipped).",
-        insertedCount: result.count,
+        message: "Employee services updated successfully.",
+        addedCount: insertedCount,
+        removedCount: removedServicesIds.length,
       });
     } catch (error) {
-      console.error("❌ ERROR IN addMultipleEmployeeServices:", {
+      console.error("❌ ERROR IN addMultipleEmployeeServices", {
         message: error.message,
         code: error.code,
         stack: error.stack,
@@ -648,11 +704,10 @@ class EmployeeController {
 
       return res.status(500).json({
         success: false,
-        message: "Failed to add employee services.",
+        message: "Failed to update employee services.",
       });
     }
   }
-
   // ==========================
   // GET SERVICES BY EMPLOYEE
   // ==========================
