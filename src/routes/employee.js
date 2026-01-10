@@ -132,7 +132,7 @@ router.get(
   employeeController.getSchedule
 );
 
-router.get(
+router.post(
   "/schedules/bulk",
   authenticateToken,
   [
