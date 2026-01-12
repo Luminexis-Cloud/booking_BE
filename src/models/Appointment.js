@@ -62,19 +62,14 @@ class Appointment {
         startTime,
         endTime,
         color,
-
         sendSms,
         smsReminder,
-
         recurrence,
-
         downPayment,
         totalPayment,
-
         storeId,
         clientId,
         employeeId,
-
         serviceIds = [],
       } = appointmentData;
 
@@ -90,10 +85,7 @@ class Appointment {
       }
 
       if (!clientId) {
-        return {
-          success: false,
-          message: "clientId is required",
-        };
+        return { success: false, message: "clientId is required" };
       }
 
       if (!serviceIds.length) {
@@ -106,17 +98,11 @@ class Appointment {
       /* ───────────────────────────── */
       /* TIME VALIDATION */
       /* ───────────────────────────── */
-      // const timeCheck = this.validateAppointmentTime(startTime, endTime);
-      // if (!timeCheck.success) return timeCheck;
-
-      // const durationCheck = this.validateAppointmentDuration(
-      //   startTime,
-      //   endTime
-      // );
-      // if (!durationCheck.success) return durationCheck;
 
       const start = new Date(startTime);
       const end = new Date(endTime);
+
+    
 
       const dateOnly = new Date(
         start.getFullYear(),
@@ -129,11 +115,7 @@ class Appointment {
       /* ───────────────────────────── */
 
       const employee = await prisma.user.findFirst({
-        where: {
-          id: employeeId,
-          storeId,
-          isActive: true,
-        },
+        where: { id: employeeId, storeId, isActive: true },
       });
 
       if (!employee) {
@@ -148,16 +130,32 @@ class Appointment {
       /* ───────────────────────────── */
 
       const client = await prisma.client.findFirst({
-        where: {
-          id: clientId,
-          storeId,
-        },
+        where: { id: clientId, storeId },
       });
 
       if (!client) {
         return {
           success: false,
           message: "Invalid client or client does not belong to this store",
+        };
+      }
+
+      /* ───────────────────────────── */
+      /* SERVICE VALIDATION (🔥 FIX) */
+      /* ───────────────────────────── */
+
+      const services = await prisma.service.findMany({
+        where: {
+          id: { in: serviceIds },
+          storeId,
+        },
+      });
+
+      if (services.length !== serviceIds.length) {
+        return {
+          success: false,
+          message:
+            "One or more selected services are invalid or do not belong to this store",
         };
       }
 
@@ -202,10 +200,7 @@ class Appointment {
 
       if (recurrence) {
         if (!recurrence.type) {
-          return {
-            success: false,
-            message: "recurrence.type is required",
-          };
+          return { success: false, message: "recurrence.type is required" };
         }
 
         if (
@@ -229,17 +224,12 @@ class Appointment {
             date: dateOnly,
             startTime: start,
             endTime: end,
-
             color: color || "gold",
-
             recurrence: recurrence ?? null,
-
             downPayment: downPayment ?? null,
             totalPayment: totalPayment ?? null,
-
             sendSms: !!sendSms,
             smsReminder: sendSms ? smsReminder : null,
-
             storeId,
             employeeId,
             clientId,
@@ -247,17 +237,13 @@ class Appointment {
         });
 
         await tx.appointmentService.createMany({
-          data: serviceIds.map((serviceId) => ({
+          data: services.map((service) => ({
             appointmentId: appointment.id,
-            serviceId,
+            serviceId: service.id,
           })),
         });
 
         return appointment;
-      });
-
-      console.info("[createAppointment] success", {
-        appointmentId: appointment.id,
       });
 
       return {
@@ -272,10 +258,7 @@ class Appointment {
         stack: error.stack,
       });
 
-      return {
-        success: false,
-        message: error.message,
-      };
+      return { success: false, message: error.message };
     }
   }
 
