@@ -83,15 +83,20 @@ class Appointment {
       /* ───────────────────────────── */
 
       if (!storeId || !employeeId) {
-        console.warn("[createAppointment] missing storeId or employeeId");
         return {
           success: false,
           message: "storeId and employeeId are required",
         };
       }
 
+      if (!clientId) {
+        return {
+          success: false,
+          message: "clientId is required",
+        };
+      }
+
       if (!serviceIds.length) {
-        console.warn("[createAppointment] no services selected");
         return {
           success: false,
           message: "At least one service must be selected",
@@ -101,7 +106,6 @@ class Appointment {
       /* ───────────────────────────── */
       /* TIME VALIDATION */
       /* ───────────────────────────── */
-
       // const timeCheck = this.validateAppointmentTime(startTime, endTime);
       // if (!timeCheck.success) return timeCheck;
 
@@ -133,11 +137,6 @@ class Appointment {
       });
 
       if (!employee) {
-        console.warn("[createAppointment] invalid employee", {
-          employeeId,
-          storeId,
-        });
-
         return {
           success: false,
           message: "Invalid employee or employee does not belong to this store",
@@ -148,29 +147,18 @@ class Appointment {
       /* CLIENT VALIDATION */
       /* ───────────────────────────── */
 
-      let resolvedClientId = null;
+      const client = await prisma.client.findFirst({
+        where: {
+          id: clientId,
+          storeId,
+        },
+      });
 
-      if (clientId) {
-        const client = await prisma.client.findFirst({
-          where: {
-            id: clientId,
-            storeId,
-          },
-        });
-
-        if (!client) {
-          console.warn("[createAppointment] invalid client", {
-            clientId,
-            storeId,
-          });
-
-          return {
-            success: false,
-            message: "Invalid client or client does not belong to this store",
-          };
-        }
-
-        resolvedClientId = client.id;
+      if (!client) {
+        return {
+          success: false,
+          message: "Invalid client or client does not belong to this store",
+        };
       }
 
       /* ───────────────────────────── */
@@ -187,12 +175,6 @@ class Appointment {
       });
 
       if (conflict) {
-        console.warn("[createAppointment] time conflict", {
-          employeeId,
-          startTime,
-          endTime,
-        });
-
         return {
           success: false,
           message: "Employee already has an appointment at this time",
@@ -208,11 +190,6 @@ class Appointment {
         totalPayment != null &&
         downPayment > totalPayment
       ) {
-        console.warn("[createAppointment] invalid payment", {
-          downPayment,
-          totalPayment,
-        });
-
         return {
           success: false,
           message: "Down payment cannot exceed total payment",
@@ -225,7 +202,6 @@ class Appointment {
 
       if (recurrence) {
         if (!recurrence.type) {
-          console.warn("[createAppointment] recurrence missing type");
           return {
             success: false,
             message: "recurrence.type is required",
@@ -236,7 +212,6 @@ class Appointment {
           recurrence.type === "weekly" &&
           (!Array.isArray(recurrence.days) || !recurrence.days.length)
         ) {
-          console.warn("[createAppointment] invalid weekly recurrence");
           return {
             success: false,
             message: "Weekly recurrence requires at least one day",
@@ -245,37 +220,40 @@ class Appointment {
       }
 
       /* ───────────────────────────── */
-      /* CREATE APPOINTMENT */
+      /* CREATE (TRANSACTION SAFE) */
       /* ───────────────────────────── */
 
-      const appointment = await prisma.appointment.create({
-        data: {
-          date: dateOnly,
-          startTime: start,
-          endTime: end,
+      const appointment = await prisma.$transaction(async (tx) => {
+        const appointment = await tx.appointment.create({
+          data: {
+            date: dateOnly,
+            startTime: start,
+            endTime: end,
 
-          color: color || "gold",
+            color: color || "gold",
 
-          recurrence: recurrence ?? null,
+            recurrence: recurrence ?? null,
 
-          downPayment: downPayment ?? null,
-          totalPayment: totalPayment ?? null,
+            downPayment: downPayment ?? null,
+            totalPayment: totalPayment ?? null,
 
-          sendSms: !!sendSms,
-          smsReminder: sendSms ? smsReminder : null,
+            sendSms: !!sendSms,
+            smsReminder: sendSms ? smsReminder : null,
 
-          storeId,
-          employeeId,
-          clientId: resolvedClientId,
-        },
-      });
+            storeId,
+            employeeId,
+            clientId,
+          },
+        });
 
-      await prisma.appointmentService.createMany({
-        data: serviceIds.map((serviceId) => ({
-          appointmentId: appointment.id,
-          serviceId,
-        })),
-        skipDuplicates: true,
+        await tx.appointmentService.createMany({
+          data: serviceIds.map((serviceId) => ({
+            appointmentId: appointment.id,
+            serviceId,
+          })),
+        });
+
+        return appointment;
       });
 
       console.info("[createAppointment] success", {
@@ -288,11 +266,15 @@ class Appointment {
         data: appointment,
       };
     } catch (error) {
-      console.error("[createAppointment] unexpected error", error);
+      console.error("[createAppointment] unexpected error", {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
 
       return {
         success: false,
-        message: "Failed to create appointment",
+        message: error.message,
       };
     }
   }
