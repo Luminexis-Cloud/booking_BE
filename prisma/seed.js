@@ -941,6 +941,8 @@ async function main() {
   // =========================
   console.log("📅 Seeding appointments...");
 
+  console.log("📅 Seeding appointments...");
+
   for (const store of stores) {
     const employees = employeesByStore.get(store.id) || [];
     const clients = allClientsByStore.get(store.id) || [];
@@ -948,7 +950,7 @@ async function main() {
 
     if (!employees.length || !clients.length || !services.length) continue;
 
-    // prefetch expertise for store to ensure appointment uses valid employee-service pairing
+    // prefetch expertise for store
     const empServices = await prisma.employeeService.findMany({
       where: { storeId: store.id },
       select: { employeeId: true, serviceId: true },
@@ -956,8 +958,9 @@ async function main() {
 
     const servicesByEmployee = new Map();
     for (const row of empServices) {
-      if (!servicesByEmployee.has(row.employeeId))
+      if (!servicesByEmployee.has(row.employeeId)) {
         servicesByEmployee.set(row.employeeId, []);
+      }
       servicesByEmployee.get(row.employeeId).push(row.serviceId);
     }
 
@@ -965,52 +968,57 @@ async function main() {
       const employee = pick(employees);
       const client = pick(clients);
 
-      // choose a service that this employee can do
       const allowedServiceIds = servicesByEmployee.get(employee.id) || [];
       if (!allowedServiceIds.length) continue;
 
       const serviceId = pick(allowedServiceIds);
 
-      // schedule times: random day in next 30 days, between 9am-7pm
       const startTime = new Date();
       startTime.setDate(startTime.getDate() + randInt(0, 30));
-      startTime.setHours(randInt(9, 19), [0, 15, 30, 45][randInt(0, 3)], 0, 0);
+      startTime.setHours(randInt(9, 18), [0, 15, 30, 45][randInt(0, 3)], 0, 0);
 
       const duration = randInt(30, 90);
       const endTime = new Date(startTime);
       endTime.setMinutes(endTime.getMinutes() + duration);
 
-      await prisma.appointment.create({
+      const dateOnly = new Date(
+        startTime.getFullYear(),
+        startTime.getMonth(),
+        startTime.getDate()
+      );
+
+      // ✅ CREATE APPOINTMENT (CURRENT MODEL)
+      const appointment = await prisma.appointment.create({
         data: {
-          title: `Appointment ${i}`,
-          notes: `Seeded appointment for service ${serviceId}`,
-
-          // ✅ REQUIRED NEW FIELD
-          date: new Date(startTime.toDateString()),
-
+          date: dateOnly,
           startTime,
           endTime,
 
           color: "gold",
 
-          sendSms: false,
-          smsMessage: null,
-
-          isRecurring: false,
           recurrence: null,
-          recurrenceConfig: null,
 
           downPayment: null,
+          totalPayment: null,
+
+          sendSms: false,
+          smsReminder: null,
 
           storeId: store.id,
-          userId: employee.id,
+          employeeId: employee.id,
           clientId: client.id,
         },
       });
 
+      // ✅ LINK SERVICE
+      await prisma.appointmentService.create({
+        data: {
+          appointmentId: appointment.id,
+          serviceId,
+        },
+      });
     }
   }
-
   console.log("✅ LARGE SCALE seed completed successfully!");
 }
 
