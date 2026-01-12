@@ -4,33 +4,39 @@ class AppointmentController {
   async createAppointment(req, res, next) {
     const requestId = Date.now();
 
-    try {
-      const actorUserId = req.user.userId; // 🔑 AUTH USER
-      const appointmentData = req.body;
+    const actorUserId = req.user.userId; // 🔑 AUTH USER
+    const appointmentData = req.body;
 
-      console.log(`[${requestId}] CREATE_APPOINTMENT_REQUEST`, {
-        actorUserId,
-        appointmentData,
+    console.log(`[${requestId}] CREATE_APPOINTMENT_REQUEST`, {
+      actorUserId,
+      appointmentData,
+    });
+
+    const result = await appointmentService.createAppointment(
+      actorUserId,
+      appointmentData
+    );
+
+    if (!result.success) {
+      console.warn(`[${requestId}] CREATE_APPOINTMENT_FAILED`, {
+        message: result.message,
       });
 
-      const appointment = await appointmentService.createAppointment(
-        actorUserId,
-        appointmentData
-      );
-
-      console.log(`[${requestId}] CREATE_APPOINTMENT_SUCCESS`, {
-        appointmentId: appointment.id,
+      return res.status(400).json({
+        success: false,
+        message: result.message,
       });
-
-      return res.status(201).json({
-        success: true,
-        message: "Appointment created successfully",
-        data: { appointment },
-      });
-    } catch (error) {
-      console.error(`[${requestId}] CREATE_APPOINTMENT_ERROR`, error);
-      next(error);
     }
+
+    console.log(`[${requestId}] CREATE_APPOINTMENT_SUCCESS`, {
+      appointmentId: result.data?.id,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: result.message,
+      data: result.data,
+    });
   }
 
   async getUserAppointments(req, res, next) {

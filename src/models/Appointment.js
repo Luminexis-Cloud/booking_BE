@@ -5,178 +5,296 @@ const { client } = require("../services/twilioService");
 const prisma = new PrismaClient();
 
 class Appointment {
-  /* ───────────────────────────── */
-  /* VALIDATIONS */
-  /* ───────────────────────────── */
   static validateAppointmentTime(startTime, endTime) {
     const start = new Date(startTime);
     const end = new Date(endTime);
     const now = new Date();
 
     if (start <= now) {
-      throw new Error("Appointment cannot be scheduled in the past");
+      return { success: false, message: "Appointment cannot be in the past" };
     }
 
     if (end <= start) {
-      throw new Error("End time must be after start time");
+      return { success: false, message: "End time must be after start time" };
     }
 
     const startHour = start.getHours();
     const endHour = end.getHours();
 
     if (startHour < 9 || endHour > 18) {
-      throw new Error(
-        "Appointments can only be scheduled between 9 AM and 6 PM"
-      );
+      return {
+        success: false,
+        message: "Appointments allowed only between 9 AM and 6 PM",
+      };
     }
 
-    return true;
+    return { success: true, message: "OK" };
   }
 
   static validateAppointmentDuration(startTime, endTime) {
     const duration = (new Date(endTime) - new Date(startTime)) / 60000;
 
     if (duration < 30) {
-      throw new Error("Appointment must be at least 30 minutes long");
+      return {
+        success: false,
+        message: "Appointment must be at least 30 minutes",
+      };
     }
 
     if (duration > 120) {
-      throw new Error("Appointment cannot be longer than 2 hours");
+      return {
+        success: false,
+        message: "Appointment cannot exceed 2 hours",
+      };
     }
 
-    return true;
+    return { success: true, message: "OK" };
   }
 
   /* ───────────────────────────── */
   /* CREATE */
   /* ───────────────────────────── */
   static async createAppointment(actorUserId, appointmentData) {
-    const {
-      title,
-      notes,
-      startTime,
-      endTime,
-      color,
-      sendSms,
-      smsMessage,
-      isRecurring,
-      recurrence,
-      recurrenceConfig,
-      downPayment,
-      storeId,
-      clientId,
-      employeeId, // ✅ REQUIRED
-      services = [],
-    } = appointmentData;
+    console.info("[createAppointment] called", { actorUserId });
 
-    const employee = await prisma.user.findFirst({
-      where: {
-        id: employeeId,
+    try {
+      const {
+        startTime,
+        endTime,
+        color,
+
+        sendSms,
+        smsReminder,
+
+        recurrence,
+
+        downPayment,
+        totalPayment,
+
         storeId,
-        isActive: true,
-      },
-    });
+        clientId,
+        employeeId,
 
-    if (!employee) {
-      throw new Error(
-        "Invalid employeeId or employee does not belong to store"
+        serviceIds = [],
+      } = appointmentData;
+
+      /* ───────────────────────────── */
+      /* BASIC VALIDATION */
+      /* ───────────────────────────── */
+
+      if (!storeId || !employeeId) {
+        console.warn("[createAppointment] missing storeId or employeeId");
+        return {
+          success: false,
+          message: "storeId and employeeId are required",
+        };
+      }
+
+      if (!serviceIds.length) {
+        console.warn("[createAppointment] no services selected");
+        return {
+          success: false,
+          message: "At least one service must be selected",
+        };
+      }
+
+      /* ───────────────────────────── */
+      /* TIME VALIDATION */
+      /* ───────────────────────────── */
+
+      // const timeCheck = this.validateAppointmentTime(startTime, endTime);
+      // if (!timeCheck.success) return timeCheck;
+
+      // const durationCheck = this.validateAppointmentDuration(
+      //   startTime,
+      //   endTime
+      // );
+      // if (!durationCheck.success) return durationCheck;
+
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+
+      const dateOnly = new Date(
+        start.getFullYear(),
+        start.getMonth(),
+        start.getDate()
       );
-    }
 
-    // Business rules
-    this.validateAppointmentTime(startTime, endTime);
-    this.validateAppointmentDuration(startTime, endTime);
+      /* ───────────────────────────── */
+      /* EMPLOYEE VALIDATION */
+      /* ───────────────────────────── */
 
-    // Conflict check (same user)
-    const conflict = await prisma.appointment.findFirst({
-      where: {
-        userId: employeeId,
-        OR: [
-          {
-            startTime: { lte: new Date(startTime) },
-            endTime: { gt: new Date(startTime) },
-          },
-          {
-            startTime: { lt: new Date(endTime) },
-            endTime: { gte: new Date(endTime) },
-          },
-        ],
-      },
-    });
-
-    if (conflict) {
-      throw new Error("You already have an appointment at this time");
-    }
-
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    const dateOnly = new Date(
-      start.getFullYear(),
-      start.getMonth(),
-      start.getDate()
-    );
-
-    let resolvedClientId = null;
-
-    if (clientId) {
-      const client = await prisma.client.findFirst({
+      const employee = await prisma.user.findFirst({
         where: {
-          id: clientId,
-          storeId, // ✅ IMPORTANT: same store
+          id: employeeId,
+          storeId,
+          isActive: true,
         },
       });
 
-      if (!client) {
-        const err = new Error(
-          "Invalid clientId. Use Client.id and ensure it belongs to this store"
-        );
-        err.statusCode = 400;
-        throw err;
+      if (!employee) {
+        console.warn("[createAppointment] invalid employee", {
+          employeeId,
+          storeId,
+        });
+
+        return {
+          success: false,
+          message: "Invalid employee or employee does not belong to this store",
+        };
       }
 
-      resolvedClientId = client.id;
-    }
+      /* ───────────────────────────── */
+      /* CLIENT VALIDATION */
+      /* ───────────────────────────── */
 
-    // Create appointment
-    const appointment = await prisma.appointment.create({
-      data: {
-        title,
-        notes,
+      let resolvedClientId = null;
 
-        date: dateOnly,
-        startTime: start,
-        endTime: end,
+      if (clientId) {
+        const client = await prisma.client.findFirst({
+          where: {
+            id: clientId,
+            storeId,
+          },
+        });
 
-        color: color || "gold",
+        if (!client) {
+          console.warn("[createAppointment] invalid client", {
+            clientId,
+            storeId,
+          });
 
-        sendSms: !!sendSms,
-        smsMessage: sendSms ? smsMessage : null,
+          return {
+            success: false,
+            message: "Invalid client or client does not belong to this store",
+          };
+        }
 
-        isRecurring: !!isRecurring,
-        recurrence: isRecurring ? recurrence : null,
-        recurrenceConfig: isRecurring ? recurrenceConfig : null,
+        resolvedClientId = client.id;
+      }
 
-        downPayment: downPayment ?? null,
+      /* ───────────────────────────── */
+      /* CONFLICT CHECK */
+      /* ───────────────────────────── */
 
-        storeId,
-        userId: employeeId,
-        clientId: resolvedClientId, // ✅ SAFE
-      },
-    });
+      const conflict = await prisma.appointment.findFirst({
+        where: {
+          employeeId,
+          date: dateOnly,
+          startTime: { lt: end },
+          endTime: { gt: start },
+        },
+      });
 
-    // Create AppointmentService relations
-    if (services.length) {
+      if (conflict) {
+        console.warn("[createAppointment] time conflict", {
+          employeeId,
+          startTime,
+          endTime,
+        });
+
+        return {
+          success: false,
+          message: "Employee already has an appointment at this time",
+        };
+      }
+
+      /* ───────────────────────────── */
+      /* PAYMENT VALIDATION */
+      /* ───────────────────────────── */
+
+      if (
+        downPayment != null &&
+        totalPayment != null &&
+        downPayment > totalPayment
+      ) {
+        console.warn("[createAppointment] invalid payment", {
+          downPayment,
+          totalPayment,
+        });
+
+        return {
+          success: false,
+          message: "Down payment cannot exceed total payment",
+        };
+      }
+
+      /* ───────────────────────────── */
+      /* RECURRENCE VALIDATION */
+      /* ───────────────────────────── */
+
+      if (recurrence) {
+        if (!recurrence.type) {
+          console.warn("[createAppointment] recurrence missing type");
+          return {
+            success: false,
+            message: "recurrence.type is required",
+          };
+        }
+
+        if (
+          recurrence.type === "weekly" &&
+          (!Array.isArray(recurrence.days) || !recurrence.days.length)
+        ) {
+          console.warn("[createAppointment] invalid weekly recurrence");
+          return {
+            success: false,
+            message: "Weekly recurrence requires at least one day",
+          };
+        }
+      }
+
+      /* ───────────────────────────── */
+      /* CREATE APPOINTMENT */
+      /* ───────────────────────────── */
+
+      const appointment = await prisma.appointment.create({
+        data: {
+          date: dateOnly,
+          startTime: start,
+          endTime: end,
+
+          color: color || "gold",
+
+          recurrence: recurrence ?? null,
+
+          downPayment: downPayment ?? null,
+          totalPayment: totalPayment ?? null,
+
+          sendSms: !!sendSms,
+          smsReminder: sendSms ? smsReminder : null,
+
+          storeId,
+          employeeId,
+          clientId: resolvedClientId,
+        },
+      });
+
       await prisma.appointmentService.createMany({
-        data: services.map((s) => ({
+        data: serviceIds.map((serviceId) => ({
           appointmentId: appointment.id,
-          serviceId: s.serviceId,
+          serviceId,
         })),
         skipDuplicates: true,
       });
-    }
 
-    return appointment;
+      console.info("[createAppointment] success", {
+        appointmentId: appointment.id,
+      });
+
+      return {
+        success: true,
+        message: "Appointment created successfully",
+        data: appointment,
+      };
+    } catch (error) {
+      console.error("[createAppointment] unexpected error", error);
+
+      return {
+        success: false,
+        message: "Failed to create appointment",
+      };
+    }
   }
 
   /* ───────────────────────────── */

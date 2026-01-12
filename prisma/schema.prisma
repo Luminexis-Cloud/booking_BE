@@ -292,43 +292,44 @@ model Service {
 //
 
 model Appointment {
-  id            String   @id @default(cuid())
+  id        String   @id @default(cuid())
 
-  title         String
-  notes         String?
+  // ⏰ Time
+  date      DateTime
+  startTime DateTime
+  endTime   DateTime
 
-  date          DateTime
-  startTime     DateTime
-  endTime       DateTime
+  color     String   @default("gold")
 
-  color         String   @default("gold")
+  // 🔁 Recurrence (ONLY thing in JSON)
+  recurrence Json?   // null = one-time, object = recurring
 
-  sendSms       Boolean  @default(false)
-  smsMessage    String?
+  // 💰 Payments
+  downPayment  Float?
+  totalPayment Float?
 
-  isRecurring   Boolean  @default(false)
-  recurrence    String?  // daily, weekly, monthly, custom
-  recurrenceConfig Json?
+  // 📩 SMS
+  sendSms     Boolean @default(false)
+  smsReminder String?
 
-  downPayment   Float?   // nullable, only if enabled
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
+  // 🔗 Relations (REAL FKs, NOT JSON)
   storeId String
-  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store   Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  userId String?
-  user   User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  employeeId String
+  employee   User   @relation(fields: [employeeId], references: [id])
 
-  clientId String?
-  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
 
   services AppointmentService[]
 
   @@map("appointments")
 }
+
 
 //
 // ============================
