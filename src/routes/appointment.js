@@ -33,93 +33,89 @@ const allowedDays = [
 /* CREATE APPOINTMENT */
 /* ───────────────────────────────────────────── */
 const createAppointmentValidation = [
+  /* ───── BASIC ───── */
   body("employeeId")
-  .notEmpty()
-  .withMessage("employeeId is required")
-  .isString(),
-  
-  body("title")
     .notEmpty()
-    .withMessage("Title is required")
-    .isLength({ min: 1, max: 100 })
-    .withMessage("Title must be between 1 and 100 characters"),
+    .withMessage("employeeId is required")
+    .isString(),
 
-  body("notes")
+  body("storeId")
+    .notEmpty()
+    .withMessage("storeId is required")
+    .isString(),
+
+  body("clientId")
     .optional()
-    .isLength({ max: 500 })
-    .withMessage("Notes must be less than 500 characters"),
-
-  body("startTime")
-    .notEmpty()
-    .isISO8601()
-    .withMessage("Start time must be a valid ISO date"),
-
-  body("endTime")
-    .notEmpty()
-    .isISO8601()
-    .withMessage("End time must be a valid ISO date")
-    .custom((endTime, { req }) => {
-      if (new Date(endTime) <= new Date(req.body.startTime)) {
-        throw new Error("End time must be after start time");
-      }
-      return true;
-    }),
-
-  body("storeId").notEmpty().withMessage("Store ID is required"),
-
-  body("clientId").optional().isString(),
+    .isString(),
 
   body("color")
     .optional()
     .isIn(allowedColors)
     .withMessage(`Color must be one of: ${allowedColors.join(", ")}`),
 
-  /* ───── Recurrence ───── */
-  body("isRecurring")
-    .optional()
-    .isBoolean()
-    .withMessage("isRecurring must be boolean"),
+  /* ───── TIME ───── */
+  body("startTime")
+    .notEmpty()
+    .isISO8601()
+    .withMessage("startTime must be a valid ISO date"),
 
+  body("endTime")
+    .notEmpty()
+    .isISO8601()
+    .withMessage("endTime must be a valid ISO date")
+    .custom((endTime, { req }) => {
+      if (new Date(endTime) <= new Date(req.body.startTime)) {
+        throw new Error("endTime must be after startTime");
+      }
+      return true;
+    }),
+
+  /* ───── SERVICES ───── */
+  body("serviceIds")
+    .isArray({ min: 1 })
+    .withMessage("serviceIds must be a non-empty array"),
+
+  body("serviceIds.*")
+    .isString()
+    .withMessage("Each serviceId must be a string"),
+
+  /* ───── RECURRENCE (OPTIONAL) ───── */
   body("recurrence")
-    .if(body("isRecurring").equals("true"))
-    .isIn(allowedRecurrence)
-    .withMessage(`Recurrence must be one of: ${allowedRecurrence.join(", ")}`),
-
-  body("recurrenceConfig")
-    .if(body("isRecurring").equals("true"))
+    .optional()
     .isObject()
-    .withMessage("recurrenceConfig must be an object"),
+    .withMessage("recurrence must be an object"),
 
-  body("recurrenceConfig.interval")
+  body("recurrence.type")
+    .if(body("recurrence").exists())
+    .isIn(["daily", "weekly", "monthly", "yearly"])
+    .withMessage("Invalid recurrence type"),
+
+  body("recurrence.interval")
     .optional()
     .isInt({ min: 1 })
-    .withMessage("Interval must be at least 1"),
+    .withMessage("recurrence.interval must be at least 1"),
 
-  body("recurrenceConfig.repeatTimes")
+  body("recurrence.count")
     .optional()
     .isInt({ min: 1 })
-    .withMessage("Repeat times must be at least 1"),
+    .withMessage("recurrence.count must be at least 1"),
 
-  body("recurrenceConfig.daysOfWeek")
+  body("recurrence.days")
     .optional()
     .isArray({ min: 1 })
-    .withMessage("daysOfWeek must be a non-empty array"),
+    .withMessage("recurrence.days must be a non-empty array"),
 
-  body("recurrenceConfig.daysOfWeek.*")
+  body("recurrence.days.*")
     .optional()
     .isIn(allowedDays)
-    .withMessage(`Invalid weekday value`),
+    .withMessage("Invalid weekday value"),
 
-  /* ───── SMS ───── */
-  body("sendSms").optional().isBoolean().withMessage("sendSms must be boolean"),
-
-  body("smsSchedule")
-    .if(body("sendSms").equals("true"))
-    .isIn(allowedSmsSchedule)
-    .withMessage(
-      `smsSchedule must be one of: ${allowedSmsSchedule.join(", ")}`
-    ),
+  body("recurrence.isInstantConfirmation")
+    .optional()
+    .isBoolean()
+    .withMessage("isInstantConfirmation must be boolean"),
 ];
+
 
 /* ───────────────────────────────────────────── */
 /* UPDATE APPOINTMENT */
