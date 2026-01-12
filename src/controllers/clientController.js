@@ -238,6 +238,7 @@ class ClientController {
         limit: result.limit,
         total: result.total,
         clients: result.clients.map((client) => ({
+          id: client.id,
           clientId: client.clientId,
           userId: client.userId,
           storeId: client.storeId,
