@@ -275,12 +275,12 @@ class Appointment {
       include: {
         client: {
           select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-          birthday: true
-        },
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            birthday: true,
+          },
         },
         services: {
           include: { service: true },
@@ -322,21 +322,65 @@ class Appointment {
   /* DELETE */
   /* ───────────────────────────── */
   static async deleteAppointment(appointmentId, userId) {
-    const appointment = await prisma.appointment.findFirst({
-      where: { id: appointmentId, userId },
+    const requestId = Date.now();
+
+    console.log(`[${requestId}] DELETE_APPOINTMENT_START`, {
+      appointmentId,
+      userId,
     });
 
-    if (!appointment) {
-      throw new Error("Appointment not found or access denied");
+    try {
+      // 🔍 Verify user exists
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+
+      if (!user) {
+        console.warn(`[${requestId}] DELETE_APPOINTMENT_USER_NOT_FOUND`, {
+          userId,
+        });
+        throw Object.assign(new Error("User not found"), { statusCode: 404 });
+      }
+
+      // 🔍 Verify appointment exists
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: { id: true, startTime: true },
+      });
+
+      if (!appointment) {
+        console.warn(`[${requestId}] DELETE_APPOINTMENT_NOT_FOUND`, {
+          appointmentId,
+        });
+        throw Object.assign(
+          new Error("Appointment not found or access denied"),
+          { statusCode: 404 }
+        );
+      }
+
+      // 🗑️ Delete appointment
+      await prisma.appointment.delete({
+        where: { id: appointmentId },
+      });
+
+      console.log(`[${requestId}] DELETE_APPOINTMENT_SUCCESS`, {
+        appointmentId,
+      });
+
+      return {
+        success: true,
+        message: "Appointment deleted successfully",
+      };
+    } catch (error) {
+      console.error(`[${requestId}] DELETE_APPOINTMENT_ERROR`, {
+        message: error.message,
+        statusCode: error.statusCode || 500,
+        stack: error.stack,
+      });
+
+      throw error;
     }
-
-    if (new Date(appointment.startTime) < new Date()) {
-      throw new Error("Cannot delete past appointments");
-    }
-
-    await prisma.appointment.delete({ where: { id: appointmentId } });
-
-    return { message: "Appointment deleted successfully" };
   }
 
   static async hasPermission(userId, module, action) {
