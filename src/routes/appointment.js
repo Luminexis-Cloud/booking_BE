@@ -122,36 +122,6 @@ const createAppointmentValidation = [
 /* ───────────────────────────────────────────── */
 const updateAppointmentValidation = [
   param("appointmentId").notEmpty().withMessage("Appointment ID is required"),
-
-  body("title")
-    .optional()
-    .isLength({ min: 1, max: 100 })
-    .withMessage("Title must be between 1 and 100 characters"),
-
-  body("notes")
-    .optional()
-    .isLength({ max: 500 })
-    .withMessage("Notes must be less than 500 characters"),
-
-  body("startTime")
-    .optional()
-    .isISO8601()
-    .withMessage("Start time must be a valid ISO date"),
-
-  body("endTime")
-    .optional()
-    .isISO8601()
-    .withMessage("End time must be a valid ISO date"),
-
-  body("color").optional().isIn(allowedColors),
-
-  body("isRecurring").optional().isBoolean(),
-
-  body("recurrence").optional().isIn(allowedRecurrence),
-
-  body("sendSms").optional().isBoolean(),
-
-  body("smsSchedule").optional().isIn(allowedSmsSchedule),
 ];
 
 /* ───────────────────────────────────────────── */
