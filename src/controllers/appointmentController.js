@@ -42,25 +42,32 @@ class AppointmentController {
   async getUserAppointments(req, res, next) {
     const requestId = Date.now();
 
+    console.log(`[${requestId}] GET_APPOINTMENTS_REQUEST_START`);
+
     try {
       const { storeId } = req.query;
 
-      // normalize employeeIds[] safely
       const employeeIds = req.query.employeeIds
-        ? [].concat(req.query.employeeIds)
+        ? [].concat(req.query.employeeIds).filter(Boolean)
         : [];
 
-      console.log(`[${requestId}] GET_APPOINTMENTS_REQUEST`, {
+      console.log(`[${requestId}] GET_APPOINTMENTS_REQUEST_DATA`, {
         storeId,
         employeeIds,
       });
 
       if (!storeId) {
+        console.warn(`[${requestId}] GET_APPOINTMENTS_VALIDATION_FAILED`, {
+          reason: "storeId missing",
+        });
+
         return res.status(400).json({
           success: false,
           message: "storeId is required",
         });
       }
+
+      console.log(`[${requestId}] GET_APPOINTMENTS_SERVICE_CALL`);
 
       const appointments = await appointmentService.getUserAppointments({
         storeId,
@@ -77,7 +84,11 @@ class AppointmentController {
         data: { appointments },
       });
     } catch (error) {
-      console.error(`[${requestId}] GET_APPOINTMENTS_ERROR`, error);
+      console.error(`[${requestId}] GET_APPOINTMENTS_ERROR`, {
+        message: error.message,
+        stack: error.stack,
+      });
+
       next(error);
     }
   }

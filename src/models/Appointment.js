@@ -102,8 +102,6 @@ class Appointment {
       const start = new Date(startTime);
       const end = new Date(endTime);
 
-    
-
       const dateOnly = new Date(
         start.getFullYear(),
         start.getMonth(),
@@ -269,17 +267,13 @@ class Appointment {
     return prisma.appointment.findMany({
       where: {
         storeId,
-
-        // ✅ employeeId IN array (optional)
         ...(employeeIds?.length && {
           userId: { in: employeeIds },
         }),
       },
-
       orderBy: { startTime: "asc" },
-
       include: {
-        user: true, // employee
+        user: true,
         client: true,
         services: {
           include: { service: true },

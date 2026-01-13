@@ -5,8 +5,8 @@ class AppointmentService {
     return Appointment.createAppointment(actorUserId, appointmentData);
   }
 
-  async getUserAppointments(userId, date) {
-    return await Appointment.getUserAppointments(userId, date);
+  async getUserAppointments({ storeId, employeeIds }) {
+    return await Appointment.getUserAppointments({ storeId, employeeIds });
   }
 
   async updateAppointment(appointmentId, userId, updateData) {
