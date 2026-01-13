@@ -301,16 +301,16 @@ class Appointment {
       throw new Error("Appointment not found or access denied");
     }
 
-    if (updateData.startTime || updateData.endTime) {
-      this.validateAppointmentTime(
-        updateData.startTime || appointment.startTime,
-        updateData.endTime || appointment.endTime
-      );
-      this.validateAppointmentDuration(
-        updateData.startTime || appointment.startTime,
-        updateData.endTime || appointment.endTime
-      );
-    }
+    // if (updateData.startTime || updateData.endTime) {
+    //   this.validateAppointmentTime(
+    //     updateData.startTime || appointment.startTime,
+    //     updateData.endTime || appointment.endTime
+    //   );
+    //   this.validateAppointmentDuration(
+    //     updateData.startTime || appointment.startTime,
+    //     updateData.endTime || appointment.endTime
+    //   );
+    // }
 
     return prisma.appointment.update({
       where: { id: appointmentId },
