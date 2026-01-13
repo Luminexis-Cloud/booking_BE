@@ -273,7 +273,6 @@ class Appointment {
       },
       orderBy: { startTime: "asc" },
       include: {
-        user: true,
         client: true,
         services: {
           include: { service: true },
