@@ -294,7 +294,7 @@ class Appointment {
   /* ───────────────────────────── */
   static async updateAppointment(appointmentId, userId, updateData) {
     const appointment = await prisma.appointment.findFirst({
-      where: { id: appointmentId, userId },
+      where: { id: appointmentId },
     });
 
     if (!appointment) {
