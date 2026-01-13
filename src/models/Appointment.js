@@ -273,7 +273,15 @@ class Appointment {
       },
       orderBy: { startTime: "asc" },
       include: {
-        client: true,
+        client: {
+          select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          birthday: true
+        },
+        },
         services: {
           include: { service: true },
         },
