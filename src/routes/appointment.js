@@ -162,6 +162,14 @@ router.put(
   appointmentController.updateAppointment
 );
 
+router.put(
+  "/appointments/:appointmentId",
+  authenticateToken,
+  updateAppointmentValidation,
+  handleValidationErrors,
+  appointmentController.get
+);
+
 router.delete(
   "/appointments/:appointmentId",
   authenticateToken,

@@ -93,6 +93,7 @@ class EmployeeController {
           companyId,
           storeId,
           roleId,
+          userType: 'EMPLOYEE',
           isActive: false,
           isVerified: false,
         },
