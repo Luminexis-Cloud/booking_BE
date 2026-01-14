@@ -149,13 +149,13 @@ router.put(
   appointmentController.updateAppointment
 );
 
-router.put(
-  "/appointments/:appointmentId",
-  authenticateToken,
-  updateAppointmentValidation,
-  handleValidationErrors,
-  appointmentController.getUserAppointment
-);
+// router.put(
+//   "/appointments/:appointmentId",
+//   authenticateToken,
+//   updateAppointmentValidation,
+//   handleValidationErrors,
+//   appointmentController.getUserAppointment
+// );
 
 router.delete(
   "/appointments/:appointmentId",
