@@ -9,16 +9,6 @@ const router = express.Router();
 // Validation rules
 const allowedRecurrence = ["daily", "weekly", "monthly", "yearly"];
 const allowedSmsSchedule = ["instant", "one_day_before", "two_hours_before"];
-const allowedColors = [
-  "gold",
-  "blue",
-  "green",
-  "yellow",
-  "red",
-  "teal",
-  "beige",
-  "gray",
-];
 const allowedDays = [
   "monday",
   "tuesday",
@@ -45,30 +35,27 @@ const createAppointmentValidation = [
     .isString(),
 
   body("clientId")
-    .optional()
+    .notEmpty()
+    .withMessage("clientId is required")
     .isString(),
 
-  body("color")
-    .optional()
-    .isIn(allowedColors)
-    .withMessage(`Color must be one of: ${allowedColors.join(", ")}`),
 
-  /* ───── TIME ───── */
-  body("startTime")
-    .notEmpty()
-    .isISO8601()
-    .withMessage("startTime must be a valid ISO date"),
+  // /* ───── TIME ───── */
+  // body("startTime")
+  //   .notEmpty()
+  //   .isISO8601()
+  //   .withMessage("startTime must be a valid ISO date"),
 
-  body("endTime")
-    .notEmpty()
-    .isISO8601()
-    .withMessage("endTime must be a valid ISO date")
-    .custom((endTime, { req }) => {
-      if (new Date(endTime) <= new Date(req.body.startTime)) {
-        throw new Error("endTime must be after startTime");
-      }
-      return true;
-    }),
+  // body("endTime")
+  //   .notEmpty()
+  //   .isISO8601()
+  //   .withMessage("endTime must be a valid ISO date")
+  //   .custom((endTime, { req }) => {
+  //     if (new Date(endTime) <= new Date(req.body.startTime)) {
+  //       throw new Error("endTime must be after startTime");
+  //     }
+  //     return true;
+  //   }),
 
   /* ───── SERVICES ───── */
   body("serviceIds")
@@ -162,13 +149,13 @@ router.put(
   appointmentController.updateAppointment
 );
 
-// router.put(
-//   "/appointments/:appointmentId",
-//   authenticateToken,
-//   updateAppointmentValidation,
-//   handleValidationErrors,
-//   appointmentController.get
-// );
+router.put(
+  "/appointments/:appointmentId",
+  authenticateToken,
+  updateAppointmentValidation,
+  handleValidationErrors,
+  appointmentController.getUserAppointment
+);
 
 router.delete(
   "/appointments/:appointmentId",
