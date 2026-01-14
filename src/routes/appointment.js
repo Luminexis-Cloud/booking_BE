@@ -133,8 +133,8 @@ router.post(
   appointmentController.createAppointment
 );
 
-router.get(
-  "/appointments",
+router.post(
+  "/appointments/employeeAppointments",
   authenticateToken,
   getAppointmentsValidation,
   handleValidationErrors,
