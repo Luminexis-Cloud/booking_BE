@@ -181,6 +181,7 @@ class Client {
       });
 
       console.log("[CLIENT SERVICE] Client created successfully", {
+        client,
         clientId: client.clientId,
         storeId,
         durationMs: Date.now() - startTime,
