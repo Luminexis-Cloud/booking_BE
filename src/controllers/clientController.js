@@ -21,6 +21,7 @@ class ClientController {
       res.status(201).json({
         message: "Client created successfully",
         client: {
+          id: client.id,
           clientId: client.clientId,
           userId: client.userId,
           name: client.name,
