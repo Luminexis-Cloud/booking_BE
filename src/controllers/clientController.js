@@ -18,6 +18,10 @@ class ClientController {
         clientData
       );
 
+       console.log("[CLIENT SERVICE RETURN] Client created successfully", 
+        client, client.id
+      );
+
       res.status(201).json({
         message: "Client created successfully",
         client: {
