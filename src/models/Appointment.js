@@ -161,21 +161,21 @@ class Appointment {
       /* CONFLICT CHECK */
       /* ───────────────────────────── */
 
-      const conflict = await prisma.appointment.findFirst({
-        where: {
-          employeeId,
-          date: dateOnly,
-          startTime: { lt: end },
-          endTime: { gt: start },
-        },
-      });
+      // const conflict = await prisma.appointment.findFirst({
+      //   where: {
+      //     employeeId,
+      //     date: dateOnly,
+      //     startTime: { lt: end },
+      //     endTime: { gt: start },
+      //   },
+      // });
 
-      if (conflict) {
-        return {
-          success: false,
-          message: "Employee already has an appointment at this time",
-        };
-      }
+      // if (conflict) {
+      //   return {
+      //     success: false,
+      //     message: "Employee already has an appointment at this time",
+      //   };
+      // }
 
       /* ───────────────────────────── */
       /* PAYMENT VALIDATION */
