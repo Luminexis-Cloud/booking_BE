@@ -37,10 +37,10 @@ model Company {
 // =========================
 //
 enum UserType {
-    SUPERADMIN,
+    SUPERADMIN
     EMPLOYEE
   }
-  
+
 model User {
   id          String   @id @default(cuid())
   firstName   String
