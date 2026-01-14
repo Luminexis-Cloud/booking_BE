@@ -83,6 +83,7 @@ class ClientController {
       res.status(200).json({
         message: "Client fetched successfully",
         client: {
+          id: client.id,
           clientId: client.clientId,
           userId: client.userId,
           name: client.name,
