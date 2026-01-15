@@ -293,21 +293,37 @@ class Appointment {
   /* UPDATE */
   /* ───────────────────────────── */
   static async updateAppointment(appointmentId, userId, updateData) {
+    console.log("➡️ updateAppointment called", {
+      appointmentId,
+      userId,
+      updateData,
+    });
+
     return prisma.$transaction(async (tx) => {
       // 🔒 Ownership check
+      console.log("🔍 Checking appointment ownership...");
+
       const appointment = await tx.appointment.findFirst({
         where: {
           id: appointmentId,
-          userId,
+          employeeId: userId,
         },
         select: { id: true },
       });
 
+      console.log("🔍 Ownership check result:", appointment);
+
       if (!appointment) {
+        console.error("❌ Appointment not found or access denied", {
+          appointmentId,
+          userId,
+        });
         throw new Error("Appointment not found or access denied");
       }
 
       // ✏️ Update main appointment fields
+      console.log("✏️ Updating appointment fields...");
+
       await tx.appointment.update({
         where: { id: appointmentId },
         data: {
@@ -332,11 +348,17 @@ class Appointment {
         },
       });
 
+      console.log("✅ Appointment fields updated");
+
       // 🔄 Replace services if provided
       if (Array.isArray(updateData.serviceIds)) {
+        console.log("🔁 Updating services...", updateData.serviceIds);
+
         await tx.appointmentService.deleteMany({
           where: { appointmentId },
         });
+
+        console.log("🗑️ Old services removed");
 
         if (updateData.serviceIds.length) {
           await tx.appointmentService.createMany({
@@ -345,10 +367,18 @@ class Appointment {
               serviceId,
             })),
           });
+
+          console.log("➕ New services added");
+        } else {
+          console.log("⚠️ No services provided after update");
         }
+      } else {
+        console.log("ℹ️ serviceIds not provided — skipping services update");
       }
 
-      // 🔁 Return appointment in CREATE shape
+      // 🔁 Fetch updated appointment
+      console.log("📦 Fetching updated appointment...");
+
       const updatedAppointment = await tx.appointment.findFirst({
         where: {
           id: appointmentId,
@@ -376,7 +406,17 @@ class Appointment {
         },
       });
 
-      return {
+      if (!updatedAppointment) {
+        console.error("❌ Failed to fetch updated appointment", {
+          appointmentId,
+        });
+        throw new Error("Failed to fetch updated appointment");
+      }
+
+      console.log("📦 Updated appointment fetched", updatedAppointment);
+
+      // 🎯 Return CREATE shape
+      const response = {
         startTime: updatedAppointment.startTime,
         endTime: updatedAppointment.endTime,
         color: updatedAppointment.color,
@@ -393,6 +433,10 @@ class Appointment {
         sendSms: updatedAppointment.sendSms,
         smsReminder: updatedAppointment.smsReminder,
       };
+
+      console.log("✅ updateAppointment SUCCESS", response);
+
+      return response;
     });
   }
 
