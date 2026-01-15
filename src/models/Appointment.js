@@ -293,28 +293,106 @@ class Appointment {
   /* UPDATE */
   /* ───────────────────────────── */
   static async updateAppointment(appointmentId, userId, updateData) {
-    const appointment = await prisma.appointment.findFirst({
-      where: { id: appointmentId },
-    });
+    return prisma.$transaction(async (tx) => {
+      // 🔒 Ownership check
+      const appointment = await tx.appointment.findFirst({
+        where: {
+          id: appointmentId,
+          userId,
+        },
+        select: { id: true },
+      });
 
-    if (!appointment) {
-      throw new Error("Appointment not found or access denied");
-    }
+      if (!appointment) {
+        throw new Error("Appointment not found or access denied");
+      }
 
-    // if (updateData.startTime || updateData.endTime) {
-    //   this.validateAppointmentTime(
-    //     updateData.startTime || appointment.startTime,
-    //     updateData.endTime || appointment.endTime
-    //   );
-    //   this.validateAppointmentDuration(
-    //     updateData.startTime || appointment.startTime,
-    //     updateData.endTime || appointment.endTime
-    //   );
-    // }
+      // ✏️ Update main appointment fields
+      await tx.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          startTime: updateData.startTime
+            ? new Date(updateData.startTime)
+            : undefined,
+          endTime: updateData.endTime
+            ? new Date(updateData.endTime)
+            : undefined,
 
-    return prisma.appointment.update({
-      where: { id: appointmentId },
-      data: updateData,
+          color: updateData.color,
+          recurrence: updateData.recurrence ?? null,
+
+          employeeId: updateData.employeeId,
+          clientId: updateData.clientId,
+
+          downPayment: updateData.downPayment,
+          totalPayment: updateData.totalPayment,
+
+          sendSms: updateData.sendSms,
+          smsReminder: updateData.smsReminder,
+        },
+      });
+
+      // 🔄 Replace services if provided
+      if (Array.isArray(updateData.serviceIds)) {
+        await tx.appointmentService.deleteMany({
+          where: { appointmentId },
+        });
+
+        if (updateData.serviceIds.length) {
+          await tx.appointmentService.createMany({
+            data: updateData.serviceIds.map((serviceId) => ({
+              appointmentId,
+              serviceId,
+            })),
+          });
+        }
+      }
+
+      // 🔁 Return appointment in CREATE shape
+      const updatedAppointment = await tx.appointment.findFirst({
+        where: {
+          id: appointmentId,
+        },
+        select: {
+          startTime: true,
+          endTime: true,
+          color: true,
+          recurrence: true,
+
+          storeId: true,
+          employeeId: true,
+          clientId: true,
+
+          downPayment: true,
+          totalPayment: true,
+          sendSms: true,
+          smsReminder: true,
+
+          services: {
+            select: {
+              serviceId: true,
+            },
+          },
+        },
+      });
+
+      return {
+        startTime: updatedAppointment.startTime,
+        endTime: updatedAppointment.endTime,
+        color: updatedAppointment.color,
+        recurrence: updatedAppointment.recurrence ?? null,
+
+        storeId: updatedAppointment.storeId,
+        employeeId: updatedAppointment.employeeId,
+        clientId: updatedAppointment.clientId,
+
+        serviceIds: updatedAppointment.services.map((s) => s.serviceId),
+
+        downPayment: updatedAppointment.downPayment,
+        totalPayment: updatedAppointment.totalPayment,
+        sendSms: updatedAppointment.sendSms,
+        smsReminder: updatedAppointment.smsReminder,
+      };
     });
   }
 
