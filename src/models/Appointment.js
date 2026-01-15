@@ -305,8 +305,7 @@ class Appointment {
 
       const appointment = await tx.appointment.findFirst({
         where: {
-          id: appointmentId,
-          employeeId: userId,
+          id: appointmentId
         },
         select: { id: true },
       });
